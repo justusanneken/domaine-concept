@@ -149,31 +149,119 @@ Container `role="status" aria-live="polite"`; Fehler-Toast `role="alert"`. Ausbl
 - `prefers-reduced-motion: reduce` → alle Transitionen `0s`. Standard-Transition: `120ms ease-out` auf Farbe/Hintergrund.
 - `.sr-only` Hilfsklasse (Standard-Clip-Muster) für Captions, Statusmeldungen.
 
-## 6. Druckstylesheet (`@media print`, AK-18)
+## 6. Druck-/PDF-Layout (`@media print`, AK-18)
 
-```css
-@page { size:A4; margin:18mm 16mm 20mm; }
-@media print {
-  :root { color-scheme:light; /* alle Tokens auf Hell-Werte zwingen */ }
-  body > header, body > nav, .no-print, .btn, .toast-region, dialog, .doc-actions { display:none !important; }
-  body { display:block; background:#fff; color:#000; font:10.5pt/1.45 var(--font); }
-  main, .doc { max-width:none; padding:0; box-shadow:none; border:0; }
-  .doc-cover { min-height:240mm; display:flex; flex-direction:column; justify-content:center; break-after:page; }
-  .doc h2 { break-before:page; font-size:15pt; }   /* jedes Hauptkapitel 1–12 */
-  .doc h2, .doc h3 { break-after:avoid; }
-  table { font-size:9pt; border:1px solid #666; } th, td { border:1px solid #999; padding:3pt 5pt; }
-  thead { display:table-header-group; } tr, .doc-signature { break-inside:avoid; }
-  .table-wrap { overflow:visible; }
-  .lvl-r, .lvl-m, .lvl-f, .lvl-none { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
-  a { color:#000; text-decoration:none; }
-}
+Leitbild: seriöses IT-Konzeptdokument. Eine Akzentfarbe (Marineblau), sonst Graustufen; S/W-Druck bleibt eindeutig.
+Ziel bei Beispieldaten: ca. 7–8 Seiten statt 14. Zielbrowser Chromium ≥ 131 (Margin-Boxen, `counter(pages)`).
+
+**6.1 HTML-Struktur aus `renderDoc`** (`<article class="doc">`, Reihenfolge verbindlich)
+```html
+<section class="doc-cover">                       <!-- Seite 1, eigene @page cover -->
+  <p class="cover-firma">Muster Logistik GmbH</p>
+  <h1 class="cover-title">Berechtigungskonzept Active Directory</h1>
+  <p class="cover-subtitle">Rollen, Gruppen und Zugriffsrechte der Domäne <code>muster-logistik.local</code></p>
+  <dl class="cover-meta"><div><dt>Version</dt><dd>1.0</dd></div> … Datum, Verantwortlich, Ersteller, Status</dl>
+  <p class="cover-class">Intern</p>                <!-- meta.klassifizierung: „Intern“ (Standard) | „Vertraulich“ -->
+</section>
+<section class="doc-control">                      <!-- Seite 2: Dokumentinformationen + Inhalt -->
+  <h2 class="unnumbered">Dokumentinformationen</h2> <table class="doc-kv">…Stammdaten (2 Spalten)…</table>
+  [<div class="hint hint-warning">…offene Punkte…</div>]   <!-- Warnungen hierhin, nie aufs Deckblatt -->
+  <h2 class="unnumbered">Inhalt</h2>
+  <nav class="doc-toc" aria-label="Inhaltsverzeichnis"><ol><li><a href="#kap-3"><span class="toc-nr">3</span>Grundsätze</a>
+    <ol><li><a href="#kap-3-1"><span class="toc-nr">3.1</span>AGDLP</a></li></ol></li>…</ol></nav>
+</section>
+<section class="doc-chapter" id="kap-1"><h2><span class="nr">1</span>Ziele</h2>…</section>   <!-- je Kapitel 1–12 -->
 ```
-- Dokumentaufbau: Deckblatt (Firmenname 24pt, „Berechtigungskonzept Active Directory“, Domäne, Version, Datum,
-  Verantwortlicher, Ersteller), danach Kapitel 1–12 gemäß AK-16 mit Nummerierung „1 Ziele“ usw.
-- Matrix im Druck: Zellen zeigen Kürzel + Wort („R Lesen“), Farbe nur zusätzlich; ab > 6 Ressourcen Abschnitt in
-  `@page matrix { size:A4 landscape; }` (`.doc-matrix { page:matrix; }`).
-- Unterschriftenzeilen (Kap. 12): drei Spalten „Erstellt“, „Geprüft“, „Freigegeben“, je Linie 1px 50mm, darunter „Datum, Unterschrift“.
-- Keine laufende Kopf-/Fußzeile (Browser-Druck unterstützt sie nicht zuverlässig); Firmenname und Version nur auf dem Deckblatt.
+- `h2`/`h3` bekommen IDs `kap-N` / `kap-N-M`; Nummer in `<span class="nr">`. Das TOC wird aus denselben Blöcken erzeugt
+  (ohne Seitenzahlen – `target-counter()` kann Chromium nicht; Links bleiben im PDF klickbar).
+- **Zusammenhalt:** Jede `h3` wird mit dem direkt folgenden Block in `<div class="keep">` gekapselt; ist dieser eine Tabelle
+  mit > 8 Zeilen, nur `h3` + Einleitungssatz kapseln. Kapitel 8 bleibt `<section class="doc-chapter doc-matrix[ doc-matrix-landscape]">`.
+- Matrixzellen: `<td class="lvl-r"><span class="lvl-key">R</span> Lesen</td>`; Kopfzellen `Name<span class="th-sub">KÜRZEL</span>`.
+- `<code>`-Inhalt: nach `_`, `\`, `.` ein `<wbr>` einfügen (saubere Umbrüche statt Überlauf).
+- Kap. 12 Unterschriften: je Spalte `<div class="sig"><p class="sig-label">Erstellt</p><p class="sig-name">Jonas Krüger</p>
+  <p class="sig-line">Datum, Unterschrift</p></div>`; Namen: Erstellt = Ersteller, Freigegeben = Verantwortlich, Geprüft leer.
+- Kopf-/Fußzeilentexte schreibt `renderDoc` zusätzlich in `<style id="doc-page-style">` (Strings CSS-escapen: `\` `"` Zeilenumbruch):
+  `@page { @top-left{content:"<Firma>"} @top-right{content:"Berechtigungskonzept Active Directory"}`
+  `@bottom-left{content:"<Klassifizierung> · Version <v> · <Datum>"} }`
+
+**6.2 Seiten und laufende Kopf-/Fußzeile** (in `style.css`, außerhalb `@media print`)
+```css
+@page { size:A4; margin:24mm 18mm 22mm 20mm;
+  @top-left     { font:8pt system-ui,"Segoe UI",Arial,sans-serif; color:#5b6675; vertical-align:bottom; padding-bottom:4mm; }
+  @top-right    { font:8pt system-ui,"Segoe UI",Arial,sans-serif; color:#5b6675; vertical-align:bottom; padding-bottom:4mm; }
+  @bottom-left  { font:8pt system-ui,"Segoe UI",Arial,sans-serif; color:#5b6675; vertical-align:top; padding-top:4mm; }
+  @bottom-right { content:"Seite " counter(page) " von " counter(pages);
+                  font:8pt system-ui,"Segoe UI",Arial,sans-serif; color:#5b6675; vertical-align:top; padding-top:4mm; }
+}
+@page cover  { margin:0; @top-left{content:none} @top-right{content:none} @bottom-left{content:none} @bottom-right{content:none} }
+@page matrix { size:A4 landscape; margin:20mm 18mm 18mm; }
+```
+Deckblatt zählt als Seite 1, trägt aber keine Kopf-/Fußzeile. Margin-Box-Regeln aus `#doc-page-style` gelten auch für `matrix`.
+
+**6.3 Druck-Tokens, Typografie, Fluss** (`@media print`)
+```css
+:root { --p-accent:#1e3a5f; --p-accent-mid:#c5d0de; --p-accent-tint:#eaeef4; --p-text:#1a1f29;
+        --p-muted:#5b6675; --p-rule:#c9d1dc; --p-zebra:#f5f7fa; }      /* --p-muted 5,9:1 auf Weiß */
+* { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+body { font:10pt/1.45 var(--font); color:var(--p-text); background:#fff; }
+.doc p, .doc li { orphans:3; widows:3; } .doc ul, .doc ol { padding-left:14pt; margin:0 0 8pt; } .doc li { margin-bottom:2pt; }
+.doc h2 { font-size:14pt; font-weight:700; color:var(--p-accent); margin:20pt 0 8pt; padding-bottom:3pt;
+          border-bottom:1pt solid var(--p-accent); break-before:auto; break-after:avoid; }
+.doc h2 .nr, .doc h3 .nr { display:inline-block; min-width:1.8em; }
+.doc h3 { font-size:11pt; font-weight:600; margin:14pt 0 5pt; break-after:avoid; }
+.doc-chapter:first-of-type h2, .doc-control h2:first-child { margin-top:0; }
+.keep, tr, .hint, .doc-signature, .doc-toc li { break-inside:avoid; }
+.doc-control { break-after:page; }
+.doc code { font:8.5pt var(--font-mono); background:none; padding:0; color:inherit; }
+a { color:inherit; text-decoration:none; }
+```
+Kein Kapitel erzwingt einen Seitenumbruch – Ausnahmen: nach Deckblatt, nach Dokumentinformationen, Querformat-Matrix.
+
+**6.4 Deckblatt** (`.doc-cover { page:cover; height:297mm; box-sizing:border-box; padding:34mm 22mm 24mm 32mm;
+display:flex; flex-direction:column; position:relative; break-after:page; }`)
+- Akzentbalken: `::before { content:""; position:absolute; left:0; top:0; bottom:0; width:6mm; background:var(--p-accent); }`.
+- `.cover-firma` 11pt, 600, `text-transform:uppercase; letter-spacing:.08em`, Akzentfarbe. `.cover-title` 26pt/1.15, 700,
+  `margin-top:62mm`, `max-width:140mm`. `.cover-subtitle` 13pt, `--p-muted`, `margin-top:6pt`; Trennlinie darunter 40mm × 2pt Akzent.
+- `.cover-meta` `margin-top:auto` (nach unten): Raster 2 Spalten × je `dt` 8pt Versalien `--p-muted` / `dd` 10.5pt 600,
+  Zeilenabstand 8pt, oben `border-top:.5pt solid var(--p-rule); padding-top:10pt`.
+- `.cover-class` rechts unten: `align-self:flex-end; border:1pt solid var(--p-accent); padding:3pt 10pt; 9pt 700 Versalien,
+  letter-spacing:.1em`; Präfix per CSS „Klassifizierung: “ in 400. Bei „Vertraulich“ Rahmen 2pt.
+
+**6.5 Tabellen** (alle `.doc table`, inkl. `.doc-kv`)
+```css
+.doc table { width:100%; border-collapse:collapse; font-size:8.5pt; line-height:1.35; margin:4pt 0 12pt;
+             border:0; border-bottom:1pt solid var(--p-accent); }
+.doc thead { display:table-header-group; }   /* Kopf wiederholt sich auf Folgeseiten */
+.doc thead th { background:var(--p-accent); color:#fff; font-weight:600; text-align:left; vertical-align:bottom;
+                padding:4pt 6pt; border:0; position:static; }
+.doc td, .doc tbody th { padding:3.5pt 6pt; border:0; border-bottom:.5pt solid var(--p-rule); vertical-align:top; text-align:left; }
+.doc tbody th { font-weight:600; }  .doc tbody tr:nth-child(even) { background:var(--p-zebra); }
+.doc td:last-child.num { text-align:right; }   .doc .table-wrap { overflow:visible; border:0; }
+.doc-kv { width:auto; min-width:110mm; } .doc-kv thead { display:none; } .doc-kv tbody th { width:42mm; color:var(--p-muted); font-weight:400; }
+```
+**6.6 Berechtigungsmatrix:** `.matrix-doc { table-layout:fixed; }` erste Spalte 34mm (Hochformat) bzw. 42mm (Querformat),
+übrige gleich breit; Datenzellen `text-align:center; vertical-align:middle; padding:5pt 3pt; border-left:.5pt solid var(--p-rule)`;
+`.th-sub { display:block; font:7.5pt var(--font-mono); opacity:.8; }`. Querformat (`.doc-matrix-landscape { page:matrix; }`)
+nur bei > 6 Ressourcen, sonst fließt die Matrix im Hochformat (`break-inside:avoid` auf der Section, wenn ≤ 10 Rollen).
+Stufen ohne Farbabhängigkeit – Kürzel-Kästchen `.lvl-key { display:inline-block; min-width:12pt; padding:0 3pt; font-weight:700;
+border:.75pt solid var(--p-accent); border-radius:2pt; }`, Zellhintergrund immer neutral (Zebra), Steigerung über Füllung:
+| Stufe | `.lvl-key` | Text |
+|---|---|---|
+| `.lvl-none` | kein Rahmen, „–“ | „Kein Zugriff“ in `--p-muted` |
+| `.lvl-r` | Rahmen, weiß | „Lesen“ |
+| `.lvl-m` | Rahmen, bg `--p-accent-mid` | „Ändern“ |
+| `.lvl-f` | bg `--p-accent`, Schrift weiß | „Vollzugriff“, 600 |
+
+**6.7 Hinweise, Leerzustand, Unterschriften, Ausblenden**
+- `.hint` 9pt, `border-left:3pt solid var(--p-accent); background:var(--p-accent-tint); padding:6pt 9pt; border-radius:0`;
+  `.hint-warning` Randfarbe `#92400e`, bg `#fdf3e1`; Präfix „Hinweis:“/„Warnung:“ bleibt (Information nicht nur über Farbe).
+- `.doc-empty` 9pt kursiv `--p-muted`, `padding:4pt 0`.
+- `.doc-signature { display:grid; grid-template-columns:repeat(3,1fr); gap:10mm; margin-top:18pt; }`; `.sig-label` 8pt
+  Versalien `--p-muted`, `letter-spacing:.06em`; `.sig-name` 10pt 600, `min-height:12pt`; danach 18mm Freiraum,
+  `.sig-line { border-top:.75pt solid var(--p-text); padding-top:3pt; font-size:8pt; color:var(--p-muted); }`.
+- Ausblenden wie bisher: App-Kopfzeile, Navigation, `.no-print`, `.btn`, Toasts, Dialoge, `.doc-actions`, Skip-Link,
+  alle `.step` außer `#step-7`; `main, .doc { max-width:none; padding:0; margin:0; box-shadow:none; border:0; }`.
+- Bildschirmvorschau nutzt dieselben Klassen mit `rem`-Werten (§2); `@page`-Kopf/Fuß erscheint nur im Druck.
 
 ## 7. Mikrotexte (verbindlich)
 
