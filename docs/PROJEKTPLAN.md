@@ -167,4 +167,35 @@ Mittlere/niedrige Befunde dürfen als offene Punkte in die Abnahme übernommen w
 
 ## 9. Abnahme
 
-_Wird nach M5 vom Projektmanager ausgefüllt: Ergebnis je AK, offene Punkte, Entscheidung (abgenommen / mit Auflagen / nicht abgenommen)._
+Stand 01.10.2026 · Projektmanager · Grundlage: `docs/VALIDIERUNG.md` (Prüfung Commit `5a34d35`, Korrekturen Abschnitt 8, Commit `ec62fa0`)
+sowie Stichprobe im Code (V-01 `--success:#166534`, V-02 kein `scrollIntoView` in `goToStep`, V-04 Backup-Schlüssel `-defekt`).
+
+| AK | Status | Bemerkung |
+|---|---|---|
+| AK-01 – AK-11 | erfüllt | Stammdaten, Rollen, Benutzer, Ressourcen, Matrix gemäß Validierung |
+| AK-12 | erfüllt | Fokussierte Matrixzelle nach V-03 vollständig sichtbar (360 px) |
+| AK-13 – AK-18 | erfüllt | Gruppen nach AGDLP (R1–R5), Dokument Kapitel 1–12, Druck 13 Seiten A4 |
+| AK-19 | erfüllt | Markdown-Escaping nach V-06/V-07 korrigiert |
+| AK-20 – AK-21 | erfüllt | JSON-Export/-Import inkl. 4 Negativtests |
+| AK-22 | erfüllt | Defekter Speicherstand wird nach V-04 gesichert statt überschrieben |
+| AK-23 | erfüllt | 5 Rollen, 10 Benutzer, 6 Ressourcen; Beispielmatrix nach V-05 Least-Privilege-konform |
+| AK-24 | erfüllt | – |
+| AK-25 | erfüllt mit Auflage | Nur in Chromium geprüft; Firefox/Edge offen (OP-1) |
+| AK-26 | erfüllt | XSS-Payload in allen Feldern als Text dargestellt |
+| AK-27 | erfüllt mit Auflage | V-01/V-02 behoben; Screenreader-Test offen (OP-2) |
+| AK-28 | erfüllt | Hell/Dunkel/System, 360 px ohne horizontales Scrollen |
+
+Fachliche Regeln (Abschnitt 3): AGDLP, Least Privilege und Namenskonvention korrekt umgesetzt; Prozess „Beantragung“
+nach V-08 an R1 angepasst. Befunde: 0 Kritisch, 0 Hoch; alle 11 Befunde (V-01 – V-11) als behoben gemeldet.
+
+**Offene Punkte**
+
+| Nr. | Punkt | Verantwortlich | Priorität |
+|---|---|---|---|
+| OP-1 | Funktionstest in Firefox und Edge (per `file://`), insbesondere `<dialog>`, Druck/PDF, Download | Validator | Mittel |
+| OP-2 | Test mit echtem Screenreader (NVDA/Windows, ggf. VoiceOver): Live-Regionen, Dialog, Matrix | Validator | Mittel |
+| OP-3 | ~~`docs/DESIGN.md` §1 nennt noch `--success:#15803d`~~ – erledigt, auf `#166534` angeglichen | Designer | Erledigt |
+| OP-4 | Re-Validierung der Korrekturen durch den Validator (bisher Selbsttest des Webentwicklers) | Validator | Niedrig |
+
+**Entscheidung:** abgenommen mit Auflagen (OP-1 bis OP-4). Die App ist für den Einsatz als Lern- und Dokumentationswerkzeug
+freigegeben; die offenen Punkte werden ohne erneute Abnahme nachgezogen, sofern dabei keine Kritisch-/Hoch-Befunde entstehen.
