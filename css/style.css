@@ -331,7 +331,7 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
 .res-head { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
 .matrix-summary { font-size: var(--fs-sm); color: var(--text-muted); }
 
-/* Dokument (Papieroptik) */
+/* Dokument (Papieroptik, Bildschirmvorschau – dieselben Klassen wie im Druck, Maße in rem) */
 .doc {
   max-width: 52rem; background: var(--surface); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow);
@@ -339,16 +339,67 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
 }
 .doc h2 { font-size: var(--fs-lg); margin-top: var(--sp-6); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--border); }
 .doc h3 { margin-top: var(--sp-5); }
+.doc h2 .nr, .doc h3 .nr { display: inline-block; min-width: 2.2em; padding-right: .4em; color: var(--text-muted); }
 .doc ul, .doc ol { padding-left: 1.4rem; margin: 0 0 var(--sp-3); }
 .doc li { margin-bottom: var(--sp-1); }
 .doc .table-wrap { margin-bottom: var(--sp-4); }
-.doc-cover { text-align: left; padding-bottom: var(--sp-5); border-bottom: 2px solid var(--text); }
-.doc-cover .cover-firma { font-size: var(--fs-2xl); font-weight: 600; margin-bottom: var(--sp-2); }
-.doc-cover .cover-title { font-size: var(--fs-xl); margin-bottom: var(--sp-5); }
+.doc-control + .doc-chapter > h2:first-child, .doc-control h2:first-child { margin-top: 0; }
+
+/* Deckblatt */
+.doc-cover {
+  position: relative; display: flex; flex-direction: column;
+  padding: var(--sp-5) 0 var(--sp-5) var(--sp-5);
+  margin-bottom: var(--sp-6); border-bottom: 1px solid var(--border);
+}
+.doc-cover::before { content: ""; position: absolute; left: 0; top: 0; bottom: var(--sp-5); width: .375rem; background: var(--primary); border-radius: var(--r-sm); }
+.cover-firma { font-size: var(--fs-sm); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--primary); margin-bottom: var(--sp-4); }
+.doc .cover-title { font-size: var(--fs-2xl); line-height: 1.15; font-weight: 700; margin: 0; max-width: 36rem; overflow-wrap: break-word; hyphens: auto; }
+.cover-subtitle { font-size: var(--fs-lg); color: var(--text-muted); margin: var(--sp-2) 0 0; padding-bottom: var(--sp-4); position: relative; }
+.cover-subtitle::after { content: ""; position: absolute; left: 0; bottom: 0; width: 5rem; height: 2px; background: var(--primary); }
+.cover-meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--sp-3) var(--sp-5);
+  margin: var(--sp-6) 0 0; padding-top: var(--sp-4); border-top: 1px solid var(--border);
+}
+.cover-meta dt { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+.cover-meta dd { margin: 0; font-weight: 600; }
+.cover-class {
+  align-self: flex-end; margin: var(--sp-5) 0 0; border: 1px solid var(--primary); padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+}
+.cover-class::before { content: "Klassifizierung: "; font-weight: 400; }
+.cover-class.is-confidential { border-width: 2px; }
+
+/* Dokumentinformationen + Inhaltsverzeichnis */
+.doc-control { margin-bottom: var(--sp-6); }
+.doc-kv { width: 100%; }
+.doc-kv thead { display: none; }
+.doc-kv tbody th { width: 11rem; color: var(--text-muted); font-weight: 400; }
+.doc-toc ol { list-style: none; margin: 0; padding: 0; }
+.doc-toc > ol > li { margin: var(--sp-2) 0 0; font-weight: 600; }
+.doc-toc ol ol { padding-left: 2.2em; font-weight: 400; }
+.doc-toc ol ol li { margin: var(--sp-1) 0 0; }
+.doc-toc a { color: inherit; text-decoration: none; }
+.doc-toc a:hover { color: var(--primary); text-decoration: underline; }
+.toc-nr { display: inline-block; min-width: 2.2em; padding-right: .4em; color: var(--text-muted); }
+.doc-toc ol ol .toc-nr { min-width: 2.6em; }
+.cover-subtitle code { display: inline-block; max-width: 100%; }
+
+/* Matrix im Dokument */
+.matrix-doc td { text-align: center; vertical-align: middle; white-space: nowrap; }
+.matrix-doc thead th { white-space: nowrap; }  /* Bildschirm: Tabelle scrollt in .table-wrap */
+.th-sub { display: block; font: var(--fs-xs) var(--font-mono); opacity: .8; font-weight: 400; }
+.lvl-key {
+  display: inline-block; min-width: 1.25rem; padding: 0 .2rem; font-weight: 700; text-align: center;
+  border: 1px solid currentColor; border-radius: var(--r-sm);
+}
+.lvl-none .lvl-key { border-color: transparent; }
+
 .doc-empty { font-style: italic; color: var(--text-muted); }
 .doc-signature { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-5); margin-top: var(--sp-6); }
-.sig-label { font-weight: 600; margin-bottom: var(--sp-6); }
-.sig-line { border-top: 1px solid var(--text); padding-top: var(--sp-1); font-size: var(--fs-xs); color: var(--text-muted); max-width: 50mm; }
+.sig { display: flex; flex-direction: column; }
+.sig-label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: var(--sp-1); }
+.sig-name { font-weight: 600; min-height: 1.5em; margin-bottom: var(--sp-6); }
+.sig-line { margin-top: auto; border-top: 1px solid var(--text); padding-top: var(--sp-1); font-size: var(--fs-xs); color: var(--text-muted); }
 .doc-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
 
 /* ---------- 6 Responsiv ---------- */
@@ -373,6 +424,8 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
   main { padding: var(--sp-4); }
   .card { padding: var(--sp-4); }
   .doc { padding: var(--sp-4); }
+  .doc .cover-title { font-size: 1.25rem; }
+  .doc-cover { padding-left: var(--sp-4); }
   .form-grid { grid-template-columns: 1fr; }
   .doc-signature { grid-template-columns: 1fr; }
   .step-footer .btn { flex: 1 1 auto; }
@@ -384,39 +437,156 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; }
 }
 
-/* ---------- 7 Druck (AK-18) ---------- */
-@page { size: A4; margin: 18mm 16mm 20mm; }
-@page matrix { size: A4 landscape; }
+/* ---------- 7 Druck (AK-18, DESIGN.md §6) ---------- */
+/* Seiten + laufende Kopf-/Fußzeile; die Texte (Firma, Klassifizierung, Version, Datum)
+   setzt app.js in <style id="doc-page-style">. */
+@page {
+  size: A4; margin: 24mm 18mm 22mm 20mm;
+  @top-left     { font: 8pt system-ui, "Segoe UI", Arial, sans-serif; color: #5b6675; vertical-align: bottom; padding-bottom: 4mm; }
+  @top-right    { font: 8pt system-ui, "Segoe UI", Arial, sans-serif; color: #5b6675; vertical-align: bottom; padding-bottom: 4mm; }
+  @bottom-left  { font: 8pt system-ui, "Segoe UI", Arial, sans-serif; color: #5b6675; vertical-align: top; padding-top: 4mm; }
+  @bottom-right { content: "Seite " counter(page) " von " counter(pages);
+                  font: 8pt system-ui, "Segoe UI", Arial, sans-serif; color: #5b6675; vertical-align: top; padding-top: 4mm; }
+}
+@page cover {
+  margin: 0;
+  @top-left { content: none; } @top-right { content: none; } @bottom-left { content: none; } @bottom-right { content: none; }
+}
+@page matrix { size: A4 landscape; margin: 20mm 18mm 18mm; }
+
 @media print {
   :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
     color-scheme: light;
-    --bg:#ffffff; --surface:#ffffff; --surface-2:#eef0f3; --text:#000000; --text-muted:#333333;
-    --border:#999999; --border-input:#666666;
-    --primary:#000000; --danger:#b91c1c; --warning:#92400e; --success:#166534; --info:#1d4ed8;
-    --success-bg:#e7f6ec; --warning-bg:#fdf3e1; --danger-bg:#fdecec; --info-bg:#e8effd;
-    --lvl-none-bg:#eef0f3; --lvl-none-fg:#4b5563;
-    --lvl-r-bg:#dbeafe;    --lvl-r-fg:#1e3a8a;
-    --lvl-m-bg:#fef3c7;    --lvl-m-fg:#78350f;
-    --lvl-f-bg:#fee2e2;    --lvl-f-fg:#7f1d1d;
+    --bg:#ffffff; --surface:#ffffff; --surface-2:#f5f7fa; --text:#1a1f29; --text-muted:#5b6675;
+    --border:#c9d1dc; --border-input:#666666; --primary:#1e3a5f;
     --shadow:none;
+    /* Druck-Tokens */
+    --p-accent:#1e3a5f; --p-accent-mid:#c5d0de; --p-accent-tint:#eaeef4; --p-text:#1a1f29;
+    --p-muted:#5b6675; --p-rule:#c9d1dc; --p-zebra:#f5f7fa;   /* --p-muted 5,9:1 auf Weiß */
   }
-  body > header, body > nav, .no-print, .btn, .toast-region, dialog, .doc-actions, .skip-link, #storage-hint { display: none !important; }
-  body { display: block; background: #fff; color: #000; font: 10.5pt/1.45 var(--font); }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+  /* Ausblenden */
+  body > header, body > nav, .no-print, .btn, .toast-region, dialog, .doc-actions, .skip-link,
+  #storage-hint, #storage-corrupt-hint, .step-footer { display: none !important; }
   .step { display: none !important; }
   #step-7 { display: block !important; }
-  main, .doc { max-width: none; padding: 0; box-shadow: none; border: 0; margin: 0; }
-  .doc-cover { min-height: 240mm; display: flex; flex-direction: column; justify-content: center; break-after: page; border-bottom: 0; }
-  .doc h2 { break-before: page; font-size: 15pt; margin-top: 0; }
-  .doc h2, .doc h3 { break-after: avoid; }
-  .doc .table-wrap { overflow: visible; border: 0; box-shadow: none !important; }
-  table { font-size: 9pt; border: 1px solid #666; }
-  th, td { border: 1px solid #999; padding: 3pt 5pt; }
-  thead th { position: static; }
-  thead { display: table-header-group; }
-  tr, .doc-signature { break-inside: avoid; }
+  body { display: block; background: #fff; color: var(--p-text); font: 10pt/1.45 var(--font); }
+  main, .doc { max-width: none; padding: 0; margin: 0; box-shadow: none; border: 0; border-radius: 0; background: #fff; }
+
+  /* Typografie und Fluss – kein Kapitel erzwingt einen Seitenumbruch */
+  .doc p, .doc li { orphans: 3; widows: 3; }
+  .doc p { margin: 0 0 6pt; }
+  .doc ul, .doc ol { padding-left: 14pt; margin: 0 0 8pt; }
+  .doc li { margin-bottom: 2pt; }
+  .doc h2 {
+    font-size: 14pt; font-weight: 700; line-height: 1.25; color: var(--p-accent);
+    margin: 20pt 0 8pt; padding-bottom: 3pt; border-bottom: 1pt solid var(--p-accent);
+    break-before: auto; break-after: avoid;
+  }
+  .doc h2 .nr, .doc h3 .nr { display: inline-block; min-width: 1.8em; padding-right: .35em; color: inherit; }
+  .doc h3 { font-size: 11pt; font-weight: 600; line-height: 1.25; margin: 14pt 0 5pt; break-after: avoid; }
+  .doc-control + .doc-chapter > h2:first-child, .doc-control h2:first-child { margin-top: 0; }
+  .keep, tr, .hint, .doc-signature, .doc-toc li { break-inside: avoid; }
+  .doc code { font: 8.5pt var(--font-mono); background: none; padding: 0; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  /* Deckblatt */
+  .doc-cover {
+    page: cover; height: 297mm; box-sizing: border-box; padding: 34mm 22mm 24mm 32mm; margin: 0;
+    display: flex; flex-direction: column; position: relative; break-after: page; border: 0;
+  }
+  .doc-cover::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6mm; background: var(--p-accent); border-radius: 0; }
+  .cover-firma { font-size: 11pt; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--p-accent); margin: 0; }
+  .doc .cover-title { font-size: 26pt; line-height: 1.15; font-weight: 700; margin: 62mm 0 0; max-width: 140mm; color: var(--p-text); }
+  .cover-subtitle { font-size: 13pt; color: var(--p-muted); margin: 6pt 0 0; padding-bottom: 12pt; }
+  .cover-subtitle::after { width: 40mm; height: 2pt; background: var(--p-accent); }
+  .cover-subtitle code { font-size: 12pt; }
+  .cover-meta {
+    margin: auto 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8pt 12mm;
+    border-top: .5pt solid var(--p-rule); padding-top: 10pt;
+  }
+  .cover-meta dt { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: var(--p-muted); }
+  .cover-meta dd { font-size: 10.5pt; font-weight: 600; }
+  .cover-class {
+    align-self: flex-end; margin: 14pt 0 0; border: 1pt solid var(--p-accent); padding: 3pt 10pt;
+    font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--p-accent);
+  }
+  .cover-class.is-confidential { border-width: 2pt; }
+
+  /* Dokumentinformationen + Inhalt (Seite 2) */
+  .doc-control { break-after: page; margin: 0; }
+  .doc-control h2 { margin-top: 18pt; }
+  .doc-toc { font-size: 10pt; }
+  .doc-toc > ol > li { margin-top: 5pt; }
+  .doc-toc ol ol { padding-left: 1.8em; margin: 0; }
+  .doc-toc ol ol li { margin-top: 1pt; font-size: 9.5pt; }
+  .toc-nr { min-width: 1.8em; padding-right: .35em; color: var(--p-muted); }
+  .doc-toc ol ol .toc-nr { min-width: 2.4em; }
+
+  /* Tabellen */
+  .doc .table-wrap { overflow: visible; border: 0; box-shadow: none !important; margin: 0; background: none; }
+  .doc table {
+    width: 100%; border-collapse: collapse; font-size: 8.5pt; line-height: 1.35; margin: 4pt 0 12pt;
+    border: 0; border-bottom: 1pt solid var(--p-accent);
+  }
+  .doc thead { display: table-header-group; }
+  .doc thead th {
+    background: var(--p-accent); color: #fff; font-weight: 600; text-align: left; vertical-align: bottom;
+    padding: 4pt 6pt; border: 0; position: static;
+  }
+  .doc td, .doc tbody th { padding: 3.5pt 6pt; border: 0; border-bottom: .5pt solid var(--p-rule); vertical-align: top; text-align: left; }
+  .doc tbody th { font-weight: 600; }
+  .doc tbody tr:nth-child(even) { background: var(--p-zebra); }
+  .doc tbody tr:hover { background: inherit; }
+  .doc tbody tr:nth-child(odd):hover { background: #fff; }
+  .doc td.num, .doc th.num { text-align: right; }
+  .doc-kv { width: auto; min-width: 110mm; }
+  .doc .doc-kv { width: auto; }
+  .doc-kv thead { display: none; }
+  .doc-kv tbody th { width: 42mm; color: var(--p-muted); font-weight: 400; }
+
+  /* Berechtigungsmatrix */
+  .doc-matrix-keep { break-inside: avoid; }
   .doc-matrix-landscape { page: matrix; }
-  .lvl-r, .lvl-m, .lvl-f, .lvl-none, .badge, thead th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  a { color: #000; text-decoration: none; }
+  .matrix-doc { table-layout: fixed; }
+  .matrix-doc th:first-child { width: 34mm; }
+  .doc-matrix-landscape .matrix-doc th:first-child { width: 42mm; }
+  .doc .matrix-doc thead th:not(:first-child) { text-align: center; }
+  .doc .matrix-doc td {
+    text-align: center; vertical-align: middle; padding: 5pt 3pt; white-space: normal;
+    border-left: .5pt solid var(--p-rule);
+  }
+  .doc .matrix-doc tbody th { vertical-align: middle; }
+  .doc .matrix-doc thead th { font-size: 8pt; white-space: normal; overflow-wrap: anywhere; hyphens: auto; padding: 4pt 3pt; }
+  .doc .matrix-doc thead th:first-child { padding-left: 6pt; }
+  .th-sub { display: block; font: 7.5pt var(--font-mono); opacity: .8; }
+  /* Kürzel-Kästchen über der Bezeichnung: gleich hohe Zeilen, nichts bricht unschön um */
+  .matrix-doc .lvl-key { display: block; width: fit-content; margin: 0 auto 1.5pt; }
+  /* Stufen ohne Farbabhängigkeit: neutraler Zellhintergrund, Steigerung über das Kürzel-Kästchen */
+  .doc .lvl-none, .doc .lvl-r, .doc .lvl-m, .doc .lvl-f { background: transparent !important; color: var(--p-text) !important; }
+  .doc .lvl-none { color: var(--p-muted) !important; }
+  .doc .lvl-f { font-weight: 600; }
+  .lvl-key {
+    display: inline-block; min-width: 12pt; padding: 0 3pt; font-weight: 700; text-align: center;
+    border: .75pt solid var(--p-accent); border-radius: 2pt; background: #fff; color: var(--p-text);
+  }
+  .lvl-none .lvl-key { border-color: transparent; background: none; color: var(--p-muted); }
+  .lvl-m .lvl-key { background: var(--p-accent-mid); }
+  .lvl-f .lvl-key { background: var(--p-accent); color: #fff; }
+
+  /* Hinweise, Leerzustand, Unterschriften */
+  .hint {
+    font-size: 9pt; border-left: 3pt solid var(--p-accent); background: var(--p-accent-tint);
+    padding: 6pt 9pt; border-radius: 0; margin: 8pt 0 10pt; color: var(--p-text);
+  }
+  .hint-warning { border-left-color: #92400e; background: #fdf3e1; }
+  .doc-empty { font-size: 9pt; font-style: italic; color: var(--p-muted); padding: 4pt 0; margin: 0; }
+  .doc-signature { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin-top: 18pt; }
+  .sig { display: flex; flex-direction: column; }
+  .doc .sig-label { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: var(--p-muted); margin: 0 0 2pt; }
+  .doc .sig-name { font-size: 10pt; font-weight: 600; min-height: 12pt; margin: 0 0 18mm; }
+  .doc .sig-line { border-top: .75pt solid var(--p-text); padding-top: 3pt; font-size: 8pt; color: var(--p-muted); margin: auto 0 0; max-width: none; }
 }
 
 /* Gruppennamen/Kürzel in Tabellen nicht mitten im Wort umbrechen (Tabellen scrollen in .table-wrap) */

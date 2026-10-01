@@ -39,6 +39,9 @@
   var LEVEL_NAMES = { '': 'Kein Zugriff', R: 'Lesen', M: 'Ändern', F: 'Vollzugriff' };
   var LEVEL_SHORT = { '': '–', R: 'R', M: 'M', F: 'F' };
   var LEVEL_CLASS = { '': 'lvl-none', R: 'lvl-r', M: 'lvl-m', F: 'lvl-f' };
+  /* Klassifizierung des Dokuments (Deckblatt, Fußzeile); erster Wert = Standard */
+  var KLASSIFIZIERUNGEN = ['Intern', 'Vertraulich'];
+  var DOC_TITLE = 'Berechtigungskonzept Active Directory';
   var TYPES = { ordner: 'Ordner/Freigabe', drucker: 'Drucker', anwendung: 'Anwendung' };
   /* Konkrete Rechte je Typ und Stufe (Projektplan 3.2) */
   var PERMS = {
@@ -98,7 +101,8 @@
     return {
       schemaVersion: 1,
       meta: { firma: '', domaene: '', netbios: '', verantwortlich: '', funktion: '',
-              ersteller: '', version: '1.0', datum: todayISO(), rezertifizierungMonate: 6 },
+              ersteller: '', version: '1.0', datum: todayISO(), rezertifizierungMonate: 6,
+              klassifizierung: KLASSIFIZIERUNGEN[0] },
       rollen: [], benutzer: [], ressourcen: [], matrix: {}
     };
   }
@@ -168,6 +172,8 @@
     });
     var rz = Number(m.rezertifizierungMonate);
     out.meta.rezertifizierungMonate = [3, 6, 12].indexOf(rz) >= 0 ? rz : 6;
+    // Ältere Exporte ohne Feld bzw. unbekannte Werte → Standard „Intern“
+    out.meta.klassifizierung = KLASSIFIZIERUNGEN.indexOf(m.klassifizierung) >= 0 ? m.klassifizierung : KLASSIFIZIERUNGEN[0];
 
     var ids = {};
     function okId(o) { return isObj(o) && typeof o.id === 'string' && o.id && !ids[o.id]; }
@@ -487,6 +493,7 @@
     renderMatrix();
     renderGroups();
     if (currentStep === 7) renderDoc();
+    else renderPageStyle();
     updateScrollHints();
   }
   /** Nach jeder Datenänderung: speichern + neu zeichnen. */
@@ -516,7 +523,8 @@
      5  Schritt 1 – Stammdaten
      --------------------------------------------------------------------- */
   var META_FIELDS = { firma: 'm-firma', domaene: 'm-domaene', netbios: 'm-netbios', verantwortlich: 'm-verantwortlich',
-    funktion: 'm-funktion', ersteller: 'm-ersteller', version: 'm-version', datum: 'm-datum', rezertifizierungMonate: 'm-rezert' };
+    funktion: 'm-funktion', ersteller: 'm-ersteller', version: 'm-version', datum: 'm-datum', rezertifizierungMonate: 'm-rezert',
+    klassifizierung: 'm-klass' };
 
   function fillMetaForm() {
     Object.keys(META_FIELDS).forEach(function (k) { $(META_FIELDS[k]).value = String(state.meta[k]); });
@@ -959,27 +967,49 @@
     var blocks = [];
     var gg = globalGroups(), dl = localGroups();
     var EMPTY = { t: 'empty' };
-    function h2(t) { blocks.push({ t: 'h2', text: t }); }
-    function h3(t) { blocks.push({ t: 'h3', text: t }); }
+    /* Überschriften „8 Text“ bzw. „3.1 Text“ → Nummer und Text getrennt (IDs, TOC) */
+    function heading(level, t, cls) {
+      var mm = /^(\d+(?:\.\d+)?) (.*)$/.exec(t);
+      blocks.push({ t: level, nr: mm[1], text: mm[2], cls: cls || '' });
+    }
+    function h2(t, cls) { heading('h2', t, cls); }
+    function h3(t) { heading('h3', t); }
     function p(parts) { blocks.push({ t: 'p', parts: parts }); }
     function ul(items) { blocks.push({ t: 'ul', items: items }); }
     function ol(items) { blocks.push({ t: 'ol', items: items }); }
     function table(caption, head, rows) { blocks.push(rows.length ? { t: 'table', caption: caption, head: head, rows: rows } : EMPTY); }
     function dash(v) { return v ? v : '–'; }
 
-    // Deckblatt
+    var warnings = collectWarnings();
+    var verantw = [m.verantwortlich, m.funktion].filter(Boolean).join(', ');
+
+    // Deckblatt (Seite 1)
     blocks.push({
-      t: 'cover', firma: m.firma || '(Firmenname fehlt)', title: 'Berechtigungskonzept Active Directory',
+      t: 'cover', firma: m.firma || '(Firmenname fehlt)', title: DOC_TITLE, domain: domain,
+      items: [
+        ['Version', dash(m.version)],
+        ['Datum', dash(formatDate(m.datum))],
+        ['Verantwortlich', dash(verantw)],
+        ['Ersteller', dash(m.ersteller)],
+        ['Status', warnings.length ? 'Entwurf (offene Punkte)' : 'Zur Freigabe']
+      ],
+      klass: m.klassifizierung
+    });
+    // Dokumentinformationen + Inhaltsverzeichnis (Seite 2)
+    blocks.push({
+      t: 'control',
       rows: [
+        ['Firma', dash(m.firma)],
         ['AD-Domäne', m.domaene ? [C(m.domaene)] : '–'],
         ['NetBIOS-Name', m.netbios ? [C(m.netbios)] : '–'],
         ['Version', dash(m.version)],
         ['Datum', dash(formatDate(m.datum))],
-        ['Verantwortlich', dash([m.verantwortlich, m.funktion].filter(Boolean).join(', '))],
+        ['Verantwortlich', dash(verantw)],
         ['Ersteller', dash(m.ersteller)],
+        ['Klassifizierung', m.klassifizierung],
         ['Rezertifizierung', 'alle ' + rz + ' Monate']
       ],
-      warnings: collectWarnings()
+      warnings: warnings
     });
 
     // 1 Ziele
@@ -1039,6 +1069,7 @@
     h3('5.1 Rollen');
     table('Rollen', ['Rolle', 'Kürzel', 'Globale Gruppe', 'Beschreibung', 'Benutzer'],
       state.rollen.map(function (r) { return [r.name, [C(codeOf(r))], [C(ggName(r))], dash(r.beschreibung), String(usersOfRole(r.id).length)]; }));
+    if (blocks[blocks.length - 1].t === 'table') blocks[blocks.length - 1].numLast = true;
     h3('5.2 Benutzer');
     table('Benutzer', ['Name', 'Anmeldename', 'Rolle', 'Globale Gruppe'],
       state.benutzer.map(function (u) {
@@ -1070,21 +1101,21 @@
         return [[C(g.name)], 'Lokal (in Domäne) / Sicherheit', g.res.name, g.level + ' ' + LEVEL_NAMES[g.level], PERMS[g.res.typ][g.level], members];
       }));
 
-    // 8 Berechtigungsmatrix
-    var mBlocks = [];
-    mBlocks.push({ t: 'h2', text: '8 Berechtigungsmatrix' });
-    mBlocks.push({ t: 'p', parts: 'Zeilen: Rollen (globale Gruppen), Spalten: Ressourcen. – = Kein Zugriff, R = Lesen, M = Ändern, F = Vollzugriff.' });
+    // 8 Berechtigungsmatrix (eigene Section; Querformat bei > 6 Ressourcen, zusammenhalten bei ≤ 10 Rollen)
+    var mCls = 'doc-matrix' + (state.ressourcen.length > 6 ? ' doc-matrix-landscape' : '') +
+      (state.rollen.length <= 10 ? ' doc-matrix-keep' : '');
+    h2('8 Berechtigungsmatrix', mCls);
+    p('Zeilen: Rollen (globale Gruppen), Spalten: Ressourcen. – = Kein Zugriff, R = Lesen, M = Ändern, F = Vollzugriff.');
     if (state.rollen.length && state.ressourcen.length) {
-      mBlocks.push({ t: 'table', caption: 'Berechtigungsmatrix', cls: 'matrix-doc',
-        head: ['Rolle'].concat(state.ressourcen.map(function (s) { return s.name + ' (' + codeOf(s) + ')'; })),
+      blocks.push({ t: 'table', caption: 'Berechtigungsmatrix', cls: 'matrix-doc',
+        head: ['Rolle'].concat(state.ressourcen.map(function (s) { return { name: s.name, sub: codeOf(s) }; })),
         rows: state.rollen.map(function (r) {
           return [r.name].concat(state.ressourcen.map(function (s) {
             var l = getLevel(r.id, s.id);
-            return { parts: LEVEL_SHORT[l] + ' ' + LEVEL_NAMES[l], lvl: LEVEL_CLASS[l] };
+            return { lvl: LEVEL_CLASS[l], key: LEVEL_SHORT[l], label: LEVEL_NAMES[l] };
           }));
         }) });
-    } else mBlocks.push(EMPTY);
-    blocks.push({ t: 'section', cls: state.ressourcen.length > 6 ? 'doc-matrix doc-matrix-landscape' : 'doc-matrix', blocks: mBlocks });
+    } else blocks.push(EMPTY);
 
     // 9 Prozess Beantragung/Änderung
     h2('9 Prozess Beantragung/Änderung');
@@ -1125,56 +1156,148 @@
     table('Änderungshistorie', ['Version', 'Datum', 'Änderung', 'Autor'], [
       [dash(m.version), dash(formatDate(m.datum)), 'Erstellung des Berechtigungskonzepts', dash(m.ersteller)]
     ]);
-    blocks.push({ t: 'signature', labels: ['Erstellt', 'Geprüft', 'Freigegeben'] });
+    blocks.push({ t: 'signature', sigs: [['Erstellt', m.ersteller], ['Geprüft', ''], ['Freigegeben', m.verantwortlich]] });
     return blocks;
   }
 
   /* ---- Rendering nach HTML ---- */
+  /**
+   * <code> mit Umbruchstellen (<wbr>): nach \ immer (UNC-Pfade), nach _ und . nur bei langen Werten
+   * (> 20 Zeichen), damit Gruppen- und Anmeldenamen (max. 20 Zeichen) in Tabellen nicht zerrissen werden.
+   * Eingefügt wird nach dem Escapen; die betroffenen Zeichen kommen in Entities nicht vor.
+   */
+  function codeHtml(t) {
+    var str = String(t == null ? '' : t);
+    var re = str.length > 20 ? /([_\\.])/g : /(\\)/g;
+    return '<code>' + esc(str).replace(re, '$1<wbr>') + '</code>';
+  }
   function partsToHtml(parts) {
     if (parts == null) return '';
     if (typeof parts === 'string') return esc(parts);
     if (Array.isArray(parts)) return parts.map(partsToHtml).join('');
-    if (parts.code != null) return '<code>' + esc(parts.code) + '</code>';
+    if (parts.code != null) return codeHtml(parts.code);
     if (parts.b != null) return '<strong>' + esc(parts.b) + '</strong>';
     return '';
   }
+  function headCellHtml(h) {
+    if (h && typeof h === 'object') return esc(h.name) + '<span class="th-sub">' + esc(h.sub) + '</span>';
+    return esc(h);
+  }
   function tableHtml(b) {
-    return '<div class="table-wrap"><table' + (b.cls ? ' class="' + b.cls + '"' : '') + '><caption class="sr-only">' + esc(b.caption) + '</caption><thead><tr>' +
-      b.head.map(function (h) { return '<th scope="col">' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    return '<div class="table-wrap"><table' + (b.cls ? ' class="' + esc(b.cls) + '"' : '') + '><caption class="sr-only">' + esc(b.caption) + '</caption><thead><tr>' +
+      b.head.map(function (h, i) {
+        return '<th scope="col"' + (b.numLast && i === b.head.length - 1 ? ' class="num"' : '') + '>' + headCellHtml(h) + '</th>';
+      }).join('') + '</tr></thead><tbody>' +
       b.rows.map(function (row) {
         return '<tr>' + row.map(function (c, i) {
-          var tag = i === 0 ? 'th scope="row"' : 'td';
-          var close = i === 0 ? 'th' : 'td';
-          if (c && c.lvl) return '<td class="' + c.lvl + '">' + partsToHtml(c.parts) + '</td>';
-          return '<' + tag + '>' + partsToHtml(c) + '</' + close + '>';
+          if (c && c.lvl) return '<td class="' + c.lvl + '"><span class="lvl-key">' + esc(c.key) + '</span> ' + esc(c.label) + '</td>';
+          if (i === 0) return '<th scope="row">' + partsToHtml(c) + '</th>';
+          var num = b.numLast && i === row.length - 1 ? ' class="num"' : '';
+          return '<td' + num + '>' + partsToHtml(c) + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>';
   }
-  function blocksToHtml(blocks) {
-    return blocks.map(function (b) {
-      switch (b.t) {
-        case 'cover':
-          return '<header class="doc-cover"><p class="cover-firma">' + esc(b.firma) + '</p><p class="cover-title">' + esc(b.title) + '</p>' +
-            tableHtml({ caption: 'Stammdaten', head: ['Angabe', 'Wert'], rows: b.rows }) +
-            (b.warnings.length ? '<div class="hint hint-warning"><strong>Warnung:</strong> Offene Punkte im Konzept<ul>' +
-              b.warnings.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>' : '') + '</header>';
-        case 'h2': return '<h2>' + esc(b.text) + '</h2>';
-        case 'h3': return '<h3>' + esc(b.text) + '</h3>';
-        case 'p': return '<p>' + partsToHtml(b.parts) + '</p>';
-        case 'ul': case 'ol':
-          return '<' + b.t + '>' + b.items.map(function (i) { return '<li>' + partsToHtml(i) + '</li>'; }).join('') + '</' + b.t + '>';
-        case 'table': return tableHtml(b);
-        case 'empty': return '<p class="doc-empty">Keine Einträge erfasst</p>';
-        case 'section': return '<section class="' + b.cls + '">' + blocksToHtml(b.blocks) + '</section>';
-        case 'signature':
-          return '<div class="doc-signature">' + b.labels.map(function (l) {
-            return '<div><p class="sig-label">' + esc(l) + '</p><p class="sig-line">Datum, Unterschrift</p></div>';
-          }).join('') + '</div>';
-      }
-      return '';
-    }).join('');
+  function kapId(nr) { return 'kap-' + String(nr).replace(/\./g, '-'); }
+  function headingHtml(b) {
+    return '<' + b.t + ' id="' + kapId(b.nr) + '"><span class="nr">' + esc(b.nr) + '</span>' + esc(b.text) + '</' + b.t + '>';
   }
-  function renderDoc() { $('doc').innerHTML = blocksToHtml(buildDocModel()); }
+  /** Inhaltsverzeichnis aus denselben h2/h3-Blöcken (ohne Seitenzahlen). */
+  function tocHtml(blocks) {
+    var html = '<nav class="doc-toc" aria-label="Inhaltsverzeichnis"><ol>', openSub = false, first = true;
+    blocks.forEach(function (b) {
+      if (b.t !== 'h2' && b.t !== 'h3') return;
+      var link = '<a href="#' + kapId(b.nr) + '"><span class="toc-nr">' + esc(b.nr) + '</span>' + esc(b.text) + '</a>';
+      if (b.t === 'h2') {
+        if (openSub) { html += '</ol>'; openSub = false; }
+        html += (first ? '' : '</li>') + '<li>' + link;
+        first = false;
+      } else {
+        if (!openSub) { html += '<ol>'; openSub = true; }
+        html += '<li>' + link + '</li>';
+      }
+    });
+    if (openSub) html += '</ol>';
+    return html + (first ? '' : '</li>') + '</ol></nav>';
+  }
+  function blockHtml(b, all) {
+    switch (b.t) {
+      case 'cover':
+        return '<section class="doc-cover"><p class="cover-firma">' + esc(b.firma) + '</p>' +
+          '<h1 class="cover-title">' + esc(b.title) + '</h1>' +
+          '<p class="cover-subtitle">Rollen, Gruppen und Zugriffsrechte der Domäne ' + codeHtml(b.domain) + '</p>' +
+          '<dl class="cover-meta">' + b.items.map(function (it) {
+            return '<div><dt>' + esc(it[0]) + '</dt><dd>' + partsToHtml(it[1]) + '</dd></div>';
+          }).join('') + '</dl>' +
+          '<p class="cover-class' + (b.klass === 'Vertraulich' ? ' is-confidential' : '') + '">' + esc(b.klass) + '</p></section>';
+      case 'control':
+        return '<section class="doc-control"><h2 class="unnumbered">Dokumentinformationen</h2>' +
+          tableHtml({ caption: 'Dokumentinformationen', cls: 'doc-kv', head: ['Angabe', 'Wert'], rows: b.rows }) +
+          (b.warnings.length ? '<div class="hint hint-warning"><strong>Warnung:</strong> Offene Punkte im Konzept<ul>' +
+            b.warnings.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>' : '') +
+          '<h2 class="unnumbered">Inhalt</h2>' + tocHtml(all) + '</section>';
+      case 'h2': case 'h3': return headingHtml(b);
+      case 'p': return '<p>' + partsToHtml(b.parts) + '</p>';
+      case 'ul': case 'ol':
+        return '<' + b.t + '>' + b.items.map(function (i) { return '<li>' + partsToHtml(i) + '</li>'; }).join('') + '</' + b.t + '>';
+      case 'table': return tableHtml(b);
+      case 'empty': return '<p class="doc-empty">Keine Einträge erfasst</p>';
+      case 'signature':
+        return '<div class="doc-signature">' + b.sigs.map(function (sg) {
+          return '<div class="sig"><p class="sig-label">' + esc(sg[0]) + '</p><p class="sig-name">' + esc(sg[1]) + '</p>' +
+            '<p class="sig-line">Datum, Unterschrift</p></div>';
+        }).join('') + '</div>';
+    }
+    return '';
+  }
+  /**
+   * Baut das Dokument: Deckblatt, Dokumentinformationen, je h2 eine <section class="doc-chapter">.
+   * Jede h3 wird mit dem folgenden Block in <div class="keep"> gekapselt (nicht bei Tabellen > 8 Zeilen).
+   */
+  function docHtml(blocks) {
+    var out = [], open = false;
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      if (b.t === 'h2') {
+        if (open) out.push('</section>');
+        out.push('<section class="doc-chapter' + (b.cls ? ' ' + esc(b.cls) : '') + '">' + headingHtml(b));
+        open = true;
+      } else if (b.t === 'h3') {
+        var next = blocks[i + 1];
+        if (next && next.t !== 'h2' && next.t !== 'h3' && next.t !== 'signature' && !(next.t === 'table' && next.rows.length > 8)) {
+          out.push('<div class="keep">' + headingHtml(b) + blockHtml(next, blocks) + '</div>');
+          i++;
+        } else out.push(headingHtml(b));
+      } else out.push(blockHtml(b, blocks));
+    }
+    if (open) out.push('</section>');
+    return out.join('');
+  }
+  /** Wert als CSS-String-Literal: \ " und Zeilenumbrüche escapen (für @page-Inhalte). */
+  function cssString(v) {
+    return '"' + String(v == null ? '' : v)
+      .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+      .replace(/\r\n|[\r\n\f]/g, '\\A ').replace(/[\u0000-\u001f\u007f]/g, ' ') + '"';
+  }
+  /** Laufende Kopf-/Fußzeile (Margin-Boxen) mit Benutzerwerten in <style id="doc-page-style">. */
+  function renderPageStyle() {
+    var m = state.meta;
+    var foot = [m.klassifizierung, m.version ? 'Version ' + m.version : '', formatDate(m.datum)].filter(Boolean).join(' · ');
+    var css = '@page { @top-left { content: ' + cssString(m.firma) + '; } ' +
+      '@top-right { content: ' + cssString(DOC_TITLE) + '; } ' +
+      '@bottom-left { content: ' + cssString(foot) + '; } }';
+    var el = $('doc-page-style');
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'doc-page-style';
+      document.head.appendChild(el);
+    }
+    // textContent statt innerHTML: kein HTML-Parsing (auch „</style>“ im Wert bleibt harmlos)
+    if (el.textContent !== css) el.textContent = css;
+  }
+  function renderDoc() {
+    $('doc').innerHTML = docHtml(buildDocModel());
+    renderPageStyle();
+  }
 
   /* ---- Rendering nach Markdown ---- */
   function mdText(s) {
@@ -1197,7 +1320,10 @@
     return '';
   }
   function mdCell(c) {
-    var s = c && c.lvl ? partsToMd(c.parts) : partsToMd(c);
+    var s;
+    if (c && c.lvl) s = mdText(c.key + ' ' + c.label);
+    else if (c && c.name != null) s = mdText(c.name + ' (' + c.sub + ')');
+    else s = partsToMd(c);
     return s.replace(/\|/g, '\\|');
   }
   function tableMd(b) {
@@ -1210,20 +1336,22 @@
       switch (b.t) {
         case 'cover':
           return '# ' + mdText(b.firma) + '\n\n**' + mdText(b.title) + '**\n\n' +
-            tableMd({ head: ['Angabe', 'Wert'], rows: b.rows }) +
+            'Rollen, Gruppen und Zugriffsrechte der Domäne ' + partsToMd(C(b.domain)) + '\n';
+        case 'control':
+          return tableMd({ head: ['Angabe', 'Wert'], rows: b.rows }) +
             (b.warnings.length ? '\n> **Warnung:** Offene Punkte im Konzept\n>\n' + b.warnings.map(function (w) { return '> - ' + mdText(w); }).join('\n') + '\n' : '');
-        case 'h2': return '## ' + mdText(b.text) + '\n';
-        case 'h3': return '### ' + mdText(b.text) + '\n';
+        case 'h2': return '## ' + mdText(b.nr + ' ' + b.text) + '\n';
+        case 'h3': return '### ' + mdText(b.nr + ' ' + b.text) + '\n';
         case 'p': return partsToMd(b.parts) + '\n';
         case 'ul': return b.items.map(function (i) { return '- ' + partsToMd(i); }).join('\n') + '\n';
         case 'ol': return b.items.map(function (i, n) { return (n + 1) + '. ' + partsToMd(i); }).join('\n') + '\n';
         case 'table': return tableMd(b);
         case 'empty': return '*Keine Einträge erfasst*\n';
-        case 'section': return blocksToMd(b.blocks);
         case 'signature':
-          return '| ' + b.labels.join(' | ') + ' |\n|' + b.labels.map(function () { return ' --- '; }).join('|') + '|\n' +
-            '| ' + b.labels.map(function () { return '<br><br>\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'; }).join(' | ') + ' |\n' +
-            '| ' + b.labels.map(function () { return 'Datum, Unterschrift'; }).join(' | ') + ' |\n';
+          return '| ' + b.sigs.map(function (sg) { return mdText(sg[0]); }).join(' | ') + ' |\n|' + b.sigs.map(function () { return ' --- '; }).join('|') + '|\n' +
+            '| ' + b.sigs.map(function (sg) { return mdText(sg[1]).replace(/\|/g, '\\|'); }).join(' | ') + ' |\n' +
+            '| ' + b.sigs.map(function () { return '<br><br>\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_'; }).join(' | ') + ' |\n' +
+            '| ' + b.sigs.map(function () { return 'Datum, Unterschrift'; }).join(' | ') + ' |\n';
       }
       return '';
     }).join('\n');
@@ -1284,7 +1412,7 @@
     var s = emptyState();
     s.meta = { firma: 'Muster Logistik GmbH', domaene: 'muster-logistik.local', netbios: 'MUSTERLOG',
       verantwortlich: 'Petra Schäfer', funktion: 'IT-Leitung', ersteller: 'Jonas Krüger (Auszubildender FISI)',
-      version: '1.0', datum: todayISO(), rezertifizierungMonate: 6 };
+      version: '1.0', datum: todayISO(), rezertifizierungMonate: 6, klassifizierung: 'Intern' };
     s.rollen = [
       { id: 'r1', name: 'Geschäftsführung', kuerzel: 'GESCHAEFTSFUEHR', beschreibung: 'Unternehmensleitung' },
       { id: 'r2', name: 'Vertrieb', kuerzel: 'VERTRIEB', beschreibung: 'Kundenbetreuung und Angebote' },
@@ -1362,6 +1490,11 @@
     $('btn-md').addEventListener('click', exportMarkdown);
     $('btn-json').addEventListener('click', exportJson);
     window.addEventListener('beforeprint', renderDoc);
+    // Auch bei Druckvorschau über Browsermenü/Headless (Medium wechselt auf „print“)
+    if (window.matchMedia) {
+      var mq = window.matchMedia('print');
+      if (mq.addEventListener) mq.addEventListener('change', function (e) { if (e.matches) renderDoc(); });
+    }
     window.addEventListener('resize', updateScrollHints);
     resetAllForms();
     // V-04: beim Start nicht speichern – erst die erste Benutzeränderung schreibt.
