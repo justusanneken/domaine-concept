@@ -251,6 +251,8 @@ border:.75pt solid var(--p-accent); border-radius:2pt; }`, Zellhintergrund immer
 | `.lvl-r` | Rahmen, weiß | „Lesen“ |
 | `.lvl-m` | Rahmen, bg `--p-accent-mid` | „Ändern“ |
 | `.lvl-f` | bg `--p-accent`, Schrift weiß | „Vollzugriff“, 600 |
+Nachtrag (Umsetzung, D-05): Im Hochformat steht das Kürzel-Kästchen über der Bezeichnung (`display:block`, gleich hohe Zeilen
+ohne unschöne Umbrüche); im Querformat bleibt es inline mit `padding:3pt` (ca. 14 Rollen je Seite).
 
 **6.7 Hinweise, Leerzustand, Unterschriften, Ausblenden**
 - `.hint` 9pt, `border-left:3pt solid var(--p-accent); background:var(--p-accent-tint); padding:6pt 9pt; border-radius:0`;

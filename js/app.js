@@ -1082,30 +1082,36 @@
     table('Ressourcen', ['Ressource', 'Typ', 'Kürzel', 'Pfad/UNC', 'Besitzer', 'Beschreibung'],
       state.ressourcen.map(function (s) {
         var o = roleById(s.besitzerRolleId);
-        return [s.name, TYPES[s.typ], [C(codeOf(s))], s.pfad ? [C(s.pfad)] : '–', o ? o.name : '–', dash(s.beschreibung)];
+        return [s.name, TYPES[s.typ], [C(codeOf(s))], s.pfad ? { cell: [C(s.pfad)], cls: 'col-path' } : '–', o ? o.name : '–', dash(s.beschreibung)];
       }));
 
     // 7 Gruppen
     h2('7 Gruppen');
+    // D-02: Bereich/Typ ist je Tabelle konstant → Einleitungssatz statt eigener Spalte
     h3('7.1 Globale Gruppen');
-    table('Globale Gruppen', ['Gruppe', 'Bereich/Typ', 'Rolle', 'Mitglieder (Benutzer)'],
+    p('Bereich: Global, Typ: Sicherheit. Je Rolle eine Gruppe; Mitglieder sind ausschließlich Benutzer.');
+    table('Globale Gruppen', ['Gruppe', 'Rolle', 'Mitglieder (Benutzer)'],
       gg.map(function (g) {
-        return [[C(g.name)], 'Global / Sicherheit', g.role.name,
+        return [[C(g.name)], g.role.name,
           g.members.length ? g.members.map(function (u) { return fullName(u) + ' (' + u.anmeldename + ')'; }).join(', ') : 'keine Mitglieder'];
       }));
     h3('7.2 Domänenlokale Gruppen');
-    table('Domänenlokale Gruppen', ['Gruppe', 'Bereich/Typ', 'Ressource', 'Stufe', 'Berechtigung', 'Mitglieder (GG)'],
+    p('Bereich: Lokal (in Domäne), Typ: Sicherheit. Je Ressource und vergebener Stufe eine Gruppe; Mitglieder sind ausschließlich globale Gruppen.');
+    table('Domänenlokale Gruppen', ['Gruppe', 'Ressource', 'Stufe', 'Berechtigung', 'Mitglieder (GG)'],
       dl.map(function (g) {
         var members = [];
         g.roles.forEach(function (r, i) { if (i) members.push(', '); members.push(C(ggName(r))); });
-        return [[C(g.name)], 'Lokal (in Domäne) / Sicherheit', g.res.name, g.level + ' ' + LEVEL_NAMES[g.level], PERMS[g.res.typ][g.level], members];
+        return [[C(g.name)], g.res.name, { cell: g.level + '\u00a0' + LEVEL_NAMES[g.level], cls: 'nowrap' }, PERMS[g.res.typ][g.level], members];
       }));
+    if (blocks[blocks.length - 1].t === 'table') blocks[blocks.length - 1].cls = 'dl-table';
 
     // 8 Berechtigungsmatrix (eigene Section; Querformat bei > 6 Ressourcen, zusammenhalten bei ≤ 10 Rollen)
     var mCls = 'doc-matrix' + (state.ressourcen.length > 6 ? ' doc-matrix-landscape' : '') +
       (state.rollen.length <= 10 ? ' doc-matrix-keep' : '');
     h2('8 Berechtigungsmatrix', mCls);
-    p('Zeilen: Rollen (globale Gruppen), Spalten: Ressourcen. – = Kein Zugriff, R = Lesen, M = Ändern, F = Vollzugriff.');
+    // D-08: geschützte Leerzeichen (+ Wortverbinder nach dem Gedankenstrich) halten „F = Vollzugriff“ zusammen
+    p('Zeilen: Rollen (globale Gruppen), Spalten: Ressourcen. ' +
+      ['–\u2060\u00a0=\u00a0Kein\u00a0Zugriff', 'R\u00a0=\u00a0Lesen', 'M\u00a0=\u00a0Ändern', 'F\u00a0=\u00a0Vollzugriff'].join(', ') + '.');
     if (state.rollen.length && state.ressourcen.length) {
       blocks.push({ t: 'table', caption: 'Berechtigungsmatrix', cls: 'matrix-doc',
         head: ['Rolle'].concat(state.ressourcen.map(function (s) { return { name: s.name, sub: codeOf(s) }; })),
@@ -1162,40 +1168,87 @@
 
   /* ---- Rendering nach HTML ---- */
   /**
-   * <code> mit Umbruchstellen (<wbr>): nach \ immer (UNC-Pfade), nach _ und . nur bei langen Werten
-   * (> 20 Zeichen), damit Gruppen- und Anmeldenamen (max. 20 Zeichen) in Tabellen nicht zerrissen werden.
-   * Eingefügt wird nach dem Escapen; die betroffenen Zeichen kommen in Entities nicht vor.
+   * <code>-Ausgabe (D-03/D-08): Werte bis 30 Zeichen ohne Pfadtrenner (Gruppen, Anmeldenamen, Domänen)
+   * brechen nie um (Klasse „nowrap“, auch nicht am Bindestrich). Pfade dürfen nach \ und / umbrechen,
+   * Werte > 30 Zeichen zusätzlich nach _ und . – <wbr> wird nach dem Escapen eingefügt; diese Zeichen
+   * kommen in Entities nicht vor.
    */
   function codeHtml(t) {
     var str = String(t == null ? '' : t);
-    var re = str.length > 20 ? /([_\\.])/g : /(\\)/g;
+    var isPath = /[\\\/]/.test(str);
+    if (str.length <= 30 && !isPath) return '<code class="nowrap">' + esc(str) + '</code>';
+    // Pfade/URLs: Umbruch nur an Pfadtrennern (die Spalte hat im Druck eine Mindestbreite)
+    var re = str.length > 30 ? /([_\\\/.])/g : /([\\\/])/g;
     return '<code>' + esc(str).replace(re, '$1<wbr>') + '</code>';
+  }
+  /**
+   * D-01: Weiche Trennstellen (U+00AD) nach deutscher Grundregel für lange Wörter im Matrixkopf –
+   * zwischen Vokalen genau ein Konsonant geht in die nächste Silbe (ch, ck, sch, ph, th, qu zählen als einer).
+   * Mindestens 3 Zeichen je Teil. Wirkt auch ohne Silbentrennungs-Wörterbuch (Chromium/Linux).
+   */
+  function softHyphenate(text) {
+    return String(text).replace(/[A-Za-zÄÖÜäöüß]{9,}/g, function (w) {
+      var V = /[aeiouäöüyAEIOUÄÖÜY]/, units = [], i = 0, low = w.toLowerCase();
+      while (i < w.length) {   // Zeichen in Laut-Einheiten zerlegen
+        var n = /^(sch|ch|ck|ph|th|qu)/.exec(low.slice(i));
+        var len = n ? n[0].length : 1;
+        units.push(w.substr(i, len)); i += len;
+      }
+      var cuts = {}, pos = 0, starts = [];
+      units.forEach(function (u) { starts.push(pos); pos += u.length; });
+      for (var k = 1; k < units.length; k++) {
+        if (V.test(units[k].charAt(0))) continue;            // Trennung nur vor Konsonant(-einheit)
+        if (k + 1 >= units.length || !V.test(units[k + 1].charAt(0))) continue; // dem ein Vokal folgt
+        // davor muss (nach evtl. weiteren Konsonanten) ein Vokal stehen
+        var j = k - 1; while (j >= 0 && !V.test(units[j].charAt(0))) j--;
+        if (j < 0) continue;
+        var at = starts[k];
+        if (at >= 3 && w.length - at >= 3) cuts[at] = true;
+      }
+      var out = '';
+      for (var c = 0; c < w.length; c++) out += (cuts[c] ? '\u00ad' : '') + w.charAt(c);
+      return out;
+    });
   }
   function partsToHtml(parts) {
     if (parts == null) return '';
-    if (typeof parts === 'string') return esc(parts);
+    // Umbruchstelle nach „/“ (z. B. „Ordner/Freigabe“), damit schmale Tabellenspalten nicht überlaufen
+    if (typeof parts === 'string') return esc(parts).replace(/\//g, '/<wbr>');
     if (Array.isArray(parts)) return parts.map(partsToHtml).join('');
     if (parts.code != null) return codeHtml(parts.code);
     if (parts.b != null) return '<strong>' + esc(parts.b) + '</strong>';
     return '';
   }
   function headCellHtml(h) {
-    if (h && typeof h === 'object') return esc(h.name) + '<span class="th-sub">' + esc(h.sub) + '</span>';
+    if (h && typeof h === 'object') return esc(softHyphenate(h.name)) + '<span class="th-sub">' + esc(h.sub) + '</span>';
     return esc(h);
   }
   function tableHtml(b) {
     return '<div class="table-wrap"><table' + (b.cls ? ' class="' + esc(b.cls) + '"' : '') + '><caption class="sr-only">' + esc(b.caption) + '</caption><thead><tr>' +
       b.head.map(function (h, i) {
         return '<th scope="col"' + (b.numLast && i === b.head.length - 1 ? ' class="num"' : '') + '>' + headCellHtml(h) + '</th>';
-      }).join('') + '</tr></thead><tbody>' +
-      b.rows.map(function (row) {
-        return '<tr>' + row.map(function (c, i) {
-          if (c && c.lvl) return '<td class="' + c.lvl + '"><span class="lvl-key">' + esc(c.key) + '</span> ' + esc(c.label) + '</td>';
-          if (i === 0) return '<th scope="row">' + partsToHtml(c) + '</th>';
-          var num = b.numLast && i === row.length - 1 ? ' class="num"' : '';
-          return '<td' + num + '>' + partsToHtml(c) + '</td>';
-        }).join('') + '</tr>';
-      }).join('') + '</tbody></table></div>';
+      }).join('') + '</tr></thead>' + rowsHtml(b);
+  }
+  /**
+   * D-04: Bei langen Tabellen (> 8 Zeilen) bilden die ersten 3 Zeilen einen eigenen <tbody class="keep-start">,
+   * damit nie nur Kopf + eine Zeile am Seitenende stehen.
+   */
+  function rowsHtml(b) {
+    function rowHtml(row) {
+      return '<tr>' + row.map(function (c, i) {
+        if (c && c.lvl) return '<td class="' + c.lvl + '"><span class="lvl-key">' + esc(c.key) + '</span> ' + esc(c.label) + '</td>';
+        var cls = [];
+        if (c && c.cell != null) { if (c.cls) cls.push(c.cls); c = c.cell; }
+        if (i === 0) return '<th scope="row"' + (cls.length ? ' class="' + esc(cls.join(' ')) + '"' : '') + '>' + partsToHtml(c) + '</th>';
+        if (b.numLast && i === row.length - 1) cls.push('num');
+        return '<td' + (cls.length ? ' class="' + esc(cls.join(' ')) + '"' : '') + '>' + partsToHtml(c) + '</td>';
+      }).join('') + '</tr>';
+    }
+    var rows = b.rows.map(rowHtml);
+    if (rows.length > 8) {
+      return '<tbody class="keep-start">' + rows.slice(0, 3).join('') + '</tbody><tbody>' + rows.slice(3).join('') + '</tbody></table></div>';
+    }
+    return '<tbody>' + rows.join('') + '</tbody></table></div>';
   }
   function kapId(nr) { return 'kap-' + String(nr).replace(/\./g, '-'); }
   function headingHtml(b) {
@@ -1251,10 +1304,13 @@
   }
   /**
    * Baut das Dokument: Deckblatt, Dokumentinformationen, je h2 eine <section class="doc-chapter">.
-   * Jede h3 wird mit dem folgenden Block in <div class="keep"> gekapselt (nicht bei Tabellen > 8 Zeilen).
+   * Jede h3 wird mit dem folgenden Block (bzw. Einleitungssatz + Tabelle) in <div class="keep"> gekapselt;
+   * Tabellen > 8 Zeilen dürfen umbrechen; dann halten keep-next/keep-start Überschrift, Kopf und erste Zeilen zusammen.
    */
   function docHtml(blocks) {
+    var KEEP_MAX_ROWS = 8;    // kurze Tabellen komplett mit Überschrift zusammenhalten, längere dürfen umbrechen
     var out = [], open = false;
+    function fits(t) { return t && t.t === 'table' && t.rows.length <= KEEP_MAX_ROWS; }
     for (var i = 0; i < blocks.length; i++) {
       var b = blocks[i];
       if (b.t === 'h2') {
@@ -1262,16 +1318,24 @@
         out.push('<section class="doc-chapter' + (b.cls ? ' ' + esc(b.cls) : '') + '">' + headingHtml(b));
         open = true;
       } else if (b.t === 'h3') {
-        var next = blocks[i + 1];
-        if (next && next.t !== 'h2' && next.t !== 'h3' && next.t !== 'signature' && !(next.t === 'table' && next.rows.length > 8)) {
+        var next = blocks[i + 1], after = blocks[i + 2];
+        if (!next || next.t === 'h2' || next.t === 'h3' || next.t === 'signature') { out.push(headingHtml(b)); continue; }
+        if (next.t === 'p' && after && after.t === 'table') {
+          // h3 + Einleitungssatz + Tabelle (D-04): kurze Tabellen komplett, lange mit keep-next + keep-start
+          if (fits(after)) { out.push('<div class="keep">' + headingHtml(b) + blockHtml(next, blocks) + blockHtml(after, blocks) + '</div>'); i += 2; }
+          else { out.push('<div class="keep keep-next">' + headingHtml(b) + blockHtml(next, blocks) + '</div>'); i++; }
+        } else if (next.t === 'table' && !fits(next)) {
+          out.push('<div class="keep-next">' + headingHtml(b) + '</div>');
+        } else {
           out.push('<div class="keep">' + headingHtml(b) + blockHtml(next, blocks) + '</div>');
           i++;
-        } else out.push(headingHtml(b));
+        }
       } else out.push(blockHtml(b, blocks));
     }
     if (open) out.push('</section>');
     return out.join('');
   }
+
   /** Wert als CSS-String-Literal: \ " und Zeilenumbrüche escapen (für @page-Inhalte). */
   function cssString(v) {
     return '"' + String(v == null ? '' : v)
@@ -1322,6 +1386,7 @@
   function mdCell(c) {
     var s;
     if (c && c.lvl) s = mdText(c.key + ' ' + c.label);
+    else if (c && c.cell != null) s = partsToMd(c.cell);
     else if (c && c.name != null) s = mdText(c.name + ' (' + c.sub + ')');
     else s = partsToMd(c);
     return s.replace(/\|/g, '\\|');

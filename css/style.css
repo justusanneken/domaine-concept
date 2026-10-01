@@ -83,6 +83,7 @@ p { margin: 0 0 var(--sp-3); }
 code, .mono { font-family: var(--font-mono); font-size: .92em; overflow-wrap: anywhere; }
 a { color: var(--primary); }
 [hidden] { display: none !important; }
+code.nowrap, .nowrap { white-space: nowrap; overflow-wrap: normal; }
 
 :focus-visible {
   outline: 3px solid var(--focus);
@@ -381,7 +382,8 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
 .doc-toc a { color: inherit; text-decoration: none; }
 .doc-toc a:hover { color: var(--primary); text-decoration: underline; }
 .toc-nr { display: inline-block; min-width: 2.2em; padding-right: .4em; color: var(--text-muted); }
-.doc-toc ol ol .toc-nr { min-width: 2.6em; }
+.doc-toc ol ol .toc-nr { min-width: 2.9em; }
+.toc-nr { font-variant-numeric: tabular-nums; }
 .cover-subtitle code { display: inline-block; max-width: 100%; }
 
 /* Matrix im Dokument */
@@ -488,6 +490,11 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
   .doc h3 { font-size: 11pt; font-weight: 600; line-height: 1.25; margin: 14pt 0 5pt; break-after: avoid; }
   .doc-control + .doc-chapter > h2:first-child, .doc-control h2:first-child { margin-top: 0; }
   .keep, tr, .hint, .doc-signature, .doc-toc li { break-inside: avoid; }
+  .keep-next { break-after: avoid; }
+  .doc tbody.keep-start { break-inside: avoid; }        /* D-04: Kopf + erste 3 Zeilen zusammen */
+  .doc tbody.keep-start > tr:first-child { break-before: avoid; }
+  .doc .table-wrap:has(> table > tbody.keep-start) { break-before: avoid; }
+  .doc code { hyphens: none; }
   .doc code { font: 8.5pt var(--font-mono); background: none; padding: 0; color: inherit; }
   a { color: inherit; text-decoration: none; }
 
@@ -522,7 +529,7 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
   .doc-toc ol ol { padding-left: 1.8em; margin: 0; }
   .doc-toc ol ol li { margin-top: 1pt; font-size: 9.5pt; }
   .toc-nr { min-width: 1.8em; padding-right: .35em; color: var(--p-muted); }
-  .doc-toc ol ol .toc-nr { min-width: 2.4em; }
+  .doc-toc ol ol .toc-nr { min-width: 2.9em; }   /* D-07: „10.1“ passt, Fluchtlinie bleibt */
 
   /* Tabellen */
   .doc .table-wrap { overflow: visible; border: 0; box-shadow: none !important; margin: 0; background: none; }
@@ -538,6 +545,10 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
   .doc td, .doc tbody th { padding: 3.5pt 6pt; border: 0; border-bottom: .5pt solid var(--p-rule); vertical-align: top; text-align: left; }
   .doc tbody th { font-weight: 600; }
   .doc tbody tr:nth-child(even) { background: var(--p-zebra); }
+  /* zweiter tbody nach .keep-start (3 Zeilen): Zebra-Rhythmus fortsetzen */
+  .doc tbody.keep-start + tbody tr:nth-child(odd) { background: var(--p-zebra); }
+  .doc tbody.keep-start + tbody tr:nth-child(even) { background: #fff; }
+  .doc .dl-table td:nth-child(4) { min-width: 36mm; }  /* D-02: Spalte „Berechtigung“ nicht vierzeilig */
   .doc tbody tr:hover { background: inherit; }
   .doc tbody tr:nth-child(odd):hover { background: #fff; }
   .doc td.num, .doc th.num { text-align: right; }
@@ -558,11 +569,15 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
     border-left: .5pt solid var(--p-rule);
   }
   .doc .matrix-doc tbody th { vertical-align: middle; }
-  .doc .matrix-doc thead th { font-size: 8pt; white-space: normal; overflow-wrap: anywhere; hyphens: auto; padding: 4pt 3pt; }
+  /* D-01: Trennung an weichen Trennstellen (&shy; aus app.js) bzw. Wörterbuch, nie mitten im Wort ohne Strich */
+  .doc .matrix-doc thead th { font-size: 7.5pt; white-space: normal; overflow-wrap: break-word; hyphens: auto; padding: 4pt 2pt; }
   .doc .matrix-doc thead th:first-child { padding-left: 6pt; }
   .th-sub { display: block; font: 7.5pt var(--font-mono); opacity: .8; }
   /* Kürzel-Kästchen über der Bezeichnung: gleich hohe Zeilen, nichts bricht unschön um */
   .matrix-doc .lvl-key { display: block; width: fit-content; margin: 0 auto 1.5pt; }
+  /* D-05: Querformat hat genug Breite → Kürzel inline, kompakte Zeilen (ca. 14 Rollen je Seite) */
+  .doc-matrix-landscape .matrix-doc .lvl-key { display: inline-block; margin: 0; }
+  .doc .doc-matrix-landscape .matrix-doc td { padding: 3pt 3pt; }
   /* Stufen ohne Farbabhängigkeit: neutraler Zellhintergrund, Steigerung über das Kürzel-Kästchen */
   .doc .lvl-none, .doc .lvl-r, .doc .lvl-m, .doc .lvl-f { background: transparent !important; color: var(--p-text) !important; }
   .doc .lvl-none { color: var(--p-muted) !important; }
@@ -591,4 +606,4 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
 
 /* Gruppennamen/Kürzel in Tabellen nicht mitten im Wort umbrechen (Tabellen scrollen in .table-wrap) */
 table code { overflow-wrap: normal; white-space: nowrap; }
-table td code.help, .doc table td code { white-space: normal; }
+table td code.help, .doc table td code:not(.nowrap) { white-space: normal; }
