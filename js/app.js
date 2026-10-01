@@ -22,6 +22,7 @@
   var STORAGE_KEY = 'domaenen-rechtekonzept-v1';
   var THEME_KEY = 'domaenen-rechtekonzept-theme';
   var STEP_KEY = 'domaenen-rechtekonzept-schritt';
+  var BACKUP_KEY = 'domaenen-rechtekonzept-v1-defekt';
   var APP_NAME = 'Domänen-Rechtekonzept';
 
   var STEPS = [
@@ -120,7 +121,9 @@
 
   function setSaveStatus(ok) {
     var el = $('save-status');
-    el.textContent = ok ? 'Gespeichert' : 'Speichern nicht möglich';
+    var text = ok ? 'Gespeichert' : 'Speichern nicht möglich';
+    // V-09: Live-Region nur bei tatsächlicher Statusänderung beschreiben
+    if (el.textContent !== text) el.textContent = text;
     el.classList.toggle('is-error', !ok);
   }
   /** Speichert den Zustand (AK-22). */
@@ -129,13 +132,21 @@
     var ok = lsSet(STORAGE_KEY, JSON.stringify(state));
     setSaveStatus(ok);
   }
+  /**
+   * Lädt den gespeicherten Stand. Ist er ungültig (V-04), wird der Rohwert unter
+   * BACKUP_KEY gesichert, ein Hinweis angezeigt und nichts überschrieben, bis der
+   * Benutzer selbst etwas ändert. Rückgabe: true = ok/leer, false = defekt.
+   */
   function load() {
     var raw = lsGet(STORAGE_KEY);
-    if (!raw) return;
-    try {
-      var parsed = validateAndNormalize(JSON.parse(raw));
-      if (parsed) state = parsed;
-    } catch (e) { /* defekte Daten ignorieren */ }
+    if (!raw) return true;
+    var parsed = null;
+    try { parsed = validateAndNormalize(JSON.parse(raw)); } catch (e) { parsed = null; }
+    if (parsed) { state = parsed; return true; }
+    lsSet(BACKUP_KEY, raw);
+    $('storage-corrupt-hint').hidden = false;
+    $('save-status').textContent = 'Noch nicht gespeichert';
+    return false;
   }
 
   /**
@@ -305,13 +316,19 @@
       return;
     }
     region.appendChild(t);
-    var remaining = 5000, started = Date.now(), timer = null;
-    function start() { started = Date.now(); timer = setTimeout(function () { t.remove(); }, remaining); }
-    function pause() { clearTimeout(timer); remaining -= Date.now() - started; }
+    // Erfolgs-Toasts enthalten kein fokussierbares Element → Pause nur bei Hover (V-11)
+    var remaining = 5000, started = 0, timer = null, running = false;
+    function start() {
+      if (running) return;
+      running = true; started = Date.now();
+      timer = setTimeout(function () { t.remove(); }, remaining);
+    }
+    function pause() {
+      if (!running) return;
+      running = false; clearTimeout(timer); remaining -= Date.now() - started;
+    }
     t.addEventListener('mouseenter', pause);
     t.addEventListener('mouseleave', start);
-    t.addEventListener('focusin', pause);
-    t.addEventListener('focusout', start);
     start();
   }
 
@@ -413,7 +430,7 @@
     $('steps-list').innerHTML = STEPS.map(function (s) {
       var i = info[s.n] || {};
       var badges = '';
-      if (i.count) badges += '<span class="badge badge-count" aria-label="' + i.count + ' Einträge">' + i.count + '</span>';
+      if (i.count) badges += '<span class="badge badge-count">' + i.count + '<span class="sr-only"> Einträge</span></span>';
       if (i.err) badges += '<span class="badge badge-error" role="img" aria-label="Fehler vorhanden">!</span>';
       return '<li><button type="button" class="step-link" data-goto="' + s.n + '"' +
         (s.n === currentStep ? ' aria-current="step"' : '') + '>' +
@@ -441,8 +458,10 @@
     document.title = STEPS[n - 1].name + ' – ' + APP_NAME;
     renderAll();
     var active = document.querySelector('.step-link[aria-current="step"]');
-    if (active && active.scrollIntoView) {
-      try { active.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) { /* alt */ }
+    // V-02: Leiste direkt scrollen statt scrollIntoView (verschiebt sonst den Tab-Startpunkt)
+    var ol = $('steps-list');
+    if (active && ol.scrollWidth > ol.clientWidth) {
+      ol.scrollLeft = active.parentNode.offsetLeft - (ol.clientWidth - active.offsetWidth) / 2;
     }
     if (focus) {
       window.scrollTo(0, 0);
@@ -830,7 +849,7 @@
      7  Schritt 5 Matrix, Schritt 6 Gruppen
      --------------------------------------------------------------------- */
   function legendHtml() {
-    return '<div class="legend" aria-label="Legende">' + ['', 'R', 'M', 'F'].map(function (l) {
+    return '<div class="legend" role="group" aria-label="Legende">' + ['', 'R', 'M', 'F'].map(function (l) {
       return '<span class="chip ' + LEVEL_CLASS[l] + '">' + LEVEL_SHORT[l] + ' ' + LEVEL_NAMES[l] + '</span>';
     }).join('') + '</div><p class="help">Standard ist „Kein Zugriff“.</p>';
   }
@@ -885,9 +904,16 @@
       renderNav();
     });
     area.addEventListener('focusin', function (e) {
-      if (e.target.matches('select[data-cell]') && e.target.scrollIntoView) {
-        try { e.target.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (x) { /* alt */ }
-      }
+      var sel = e.target;
+      if (!sel.matches('select[data-cell]')) return;
+      try { sel.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (x) { /* alt */ }
+      // V-03: Zelle nicht unter der sticky Rollenspalte verstecken
+      var wrap = sel.closest('.table-wrap'), th = sel.closest('tr').querySelector('th[scope="row"]');
+      if (!wrap || !th) return;
+      var cell = sel.parentNode.getBoundingClientRect(), stickyRight = th.getBoundingClientRect().right;
+      if (cell.left < stickyRight) wrap.scrollLeft -= (stickyRight - cell.left);
+      var wrapRight = wrap.getBoundingClientRect().right;
+      if (cell.right > wrapRight) wrap.scrollLeft += (cell.right - wrapRight);
     });
   }
 
@@ -1063,11 +1089,11 @@
     // 9 Prozess Beantragung/Änderung
     h2('9 Prozess Beantragung/Änderung');
     ol([
-      'Die Führungskraft beantragt die Berechtigung schriftlich bzw. per Ticket (Benutzer, Ressource, Stufe, Begründung, Befristung).',
-      'Der Besitzer der Ressource prüft den Antrag nach Need-to-know und Least Privilege und gibt ihn frei oder lehnt ihn ab.',
-      ['Die IT setzt die Änderung ausschließlich über Gruppenmitgliedschaften um (Benutzer → ', C('GG_'), ', ', C('GG_'), ' → ', C('DL_'), '). Direkte Rechte an Benutzer werden nicht vergeben.'],
-      'Neue Zugriffsbedarfe einer ganzen Rolle werden in der Berechtigungsmatrix ergänzt; dieses Dokument wird versioniert aktualisiert.',
-      'Die Umsetzung wird im Ticket dokumentiert und dem Antragsteller bestätigt.'
+      'Die Führungskraft beantragt die Änderung schriftlich bzw. per Ticket (Begründung, ggf. Befristung). Beantragt werden entweder die Zuordnung eines Benutzers zu einer Rolle oder eine geänderte Berechtigung einer ganzen Rolle.',
+      'Der Besitzer der betroffenen Ressource prüft den Antrag nach Need-to-know und Least Privilege und gibt ihn frei oder lehnt ihn ab.',
+      ['Rollenzuordnung bzw. Rollenwechsel: Der Benutzer wird Mitglied der globalen Gruppe seiner (neuen) Rolle (', C('GG_<ROLLE>'), '); die bisherige Mitgliedschaft wird entfernt. Ein Benutzer ist nie Mitglied mehrerer globaler Gruppen (R1).'],
+      ['Rechteänderung: Die Berechtigungsmatrix wird für die gesamte Rolle angepasst, und die IT ändert die Mitgliedschaft ', C('GG_<ROLLE>'), ' → ', C('DL_<RESSOURCE>_<STUFE>'), '. Individuelle Zusatzrechte für einzelne Benutzer und direkte Rechte an Benutzer werden nicht vergeben.'],
+      'Die Umsetzung wird im Ticket dokumentiert, dem Antragsteller bestätigt und dieses Dokument versioniert aktualisiert.'
     ]);
 
     // 10 Prozess Entzug
@@ -1151,14 +1177,21 @@
   function renderDoc() { $('doc').innerHTML = blocksToHtml(buildDocModel()); }
 
   /* ---- Rendering nach Markdown ---- */
-  function mdText(s) { return String(s).replace(/([\\`*_[\]<>])/g, '\\$1').replace(/\r?\n/g, ' '); }
+  function mdText(s) {
+    // V-07: auch ~ und & escapen (sonst Durchstreichung bzw. Entity-Auflösung)
+    return String(s).replace(/([\\`*_[\]<>~])/g, '\\$1').replace(/&/g, '&amp;').replace(/\r?\n/g, ' ');
+  }
   function partsToMd(parts) {
     if (parts == null) return '';
     if (typeof parts === 'string') return mdText(parts);
     if (Array.isArray(parts)) return parts.map(partsToMd).join('');
     if (parts.code != null) {
       var t = String(parts.code).replace(/\r?\n/g, ' ');
-      return t.indexOf('`') >= 0 ? '`` ' + t + ' ``' : '`' + t + '`';
+      // V-07: Delimiter länger als die längste Backtick-Folge im Inhalt
+      var runs = t.match(/`+/g) || [], max = 0;
+      runs.forEach(function (r) { max = Math.max(max, r.length); });
+      var fence = new Array(max + 2).join('`');
+      return max ? fence + ' ' + t + ' ' + fence : '`' + t + '`';
     }
     if (parts.b != null) return '**' + mdText(parts.b) + '**';
     return '';
@@ -1168,7 +1201,7 @@
     return s.replace(/\|/g, '\\|');
   }
   function tableMd(b) {
-    return '| ' + b.head.map(function (h) { return mdText(h); }).join(' | ') + ' |\n' +
+    return '| ' + b.head.map(mdCell).join(' | ') + ' |\n' +
       '|' + b.head.map(function () { return ' --- '; }).join('|') + '|\n' +
       b.rows.map(function (r) { return '| ' + r.map(mdCell).join(' | ') + ' |'; }).join('\n') + '\n';
   }
@@ -1280,7 +1313,9 @@
       r2: { s1: 'M', s3: 'M', s4: 'M', s5: 'R', s6: 'M' },
       r3: { s1: 'R', s2: 'M', s4: 'M', s5: 'R', s6: 'R' },
       r4: { s4: 'M', s5: 'R', s6: 'M' },
-      r5: { s1: 'F', s2: 'F', s3: 'F', s4: 'F', s5: 'F', s6: 'F' }
+      // IT: Vollzugriff nur auf eigene Ressourcen (Besitzer), sonst Least Privilege (V-05);
+      // administrativer Vollzugriff läuft über Domänen-Admins/SYSTEM (R6).
+      r5: { s1: 'R', s4: 'F', s5: 'F', s6: 'R' }
     };
     return s;
   }
@@ -1329,7 +1364,7 @@
     window.addEventListener('beforeprint', renderDoc);
     window.addEventListener('resize', updateScrollHints);
     resetAllForms();
-    if (storageOk) save();
+    // V-04: beim Start nicht speichern – erst die erste Benutzeränderung schreibt.
     goToStep(Number(lsGet(STEP_KEY)) || 1, false);
   }
 

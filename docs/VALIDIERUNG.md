@@ -158,3 +158,23 @@ Die Tokens hell/dunkel entsprechen `DESIGN.md` §1 exakt, einschließlich dupliz
 ## 7. Fazit
 
 Keine Kritisch- oder Hoch-Befunde. AK-27 ist wegen V-01 und V-02 nicht erfüllt; beide lassen sich mit geringem Aufwand beheben. Alle übrigen AK sind erfüllt. V-03 bis V-05 werden zur Behebung vor der Abnahme empfohlen, V-06 bis V-11 können als offene Punkte übernommen werden.
+
+## 8. Korrekturen
+
+Stand 01.10.2026 · Verantwortlich: Webentwickler. Erneut getestet mit Playwright/Chromium per `file://`, Desktop 1280 px und mobil 360 px: keine Konsolenfehler, kein horizontales Seiten-Scrollen in allen 7 Schritten. Export und Import sind unverändert funktionsfähig.
+
+| Befund | Status | Umsetzung / Nachweis |
+|---|---|---|
+| V-01 | behoben | `--success` (hell und Druck) auf `#166534` gesetzt (≈ 6,5:1 auf `--success-bg`). `DESIGN.md` §1 nennt noch `#15803d`; der Designer sollte das nachziehen. |
+| V-02 | behoben | `goToStep` scrollt die Schrittleiste per `scrollLeft` und nur, wenn sie scrollbar ist, statt `scrollIntoView` aufzurufen. Test: Mit gespeichertem Schritt 3 landet der erste Tab auf dem Skip-Link. |
+| V-03 | behoben | `focusin` in der Matrix korrigiert `scrollLeft`, sodass die Zelle rechts der sticky Rollenspalte und im sichtbaren Bereich liegt. Test bei 360 px: Jeder per Tab fokussierte Select ist vollständig sichtbar (152/152 px). |
+| V-04 | behoben | Ein ungültiger Stand wird unter `domaenen-rechtekonzept-v1-defekt` gesichert. Der Originalschlüssel bleibt unverändert. Es erscheint ein Warnhinweis (`role="alert"`) und der Status „Noch nicht gespeichert“. Beim Start wird nicht mehr gespeichert, erst bei der ersten Änderung. Per Playwright verifiziert. |
+| V-05 | behoben | Beispielmatrix IT: `F` nur auf eigene Ressourcen (Austausch, Drucker), `R` auf Projekte und WAWI, kein Zugriff auf Buchhaltung und Vertrieb. |
+| V-06 | behoben | Kopfzellen in `tableMd` laufen über `mdCell`: `\| Rolle \| A\|B Projekte (ABPROJEKTE) \|`. |
+| V-07 | behoben | `mdText` escaped zusätzlich `~` und `&` (als `&amp;`). Code-Spans verwenden einen Delimiter, der länger ist als die längste Backtick-Folge im Inhalt (`x``y` → ```` ``` x``y ``` ````). |
+| V-08 | behoben | Kapitel 9 neu gefasst: Anträge führen entweder zur Rollenzuordnung bzw. zum Rollenwechsel (genau eine GG, R1) oder zur Matrixänderung für die ganze Rolle (GG → DL). Individuelle Zusatzrechte sind ausgeschlossen. |
+| V-09 | behoben | `setSaveStatus` schreibt die Live-Region nur noch, wenn sich der Text ändert. |
+| V-10 | behoben | `aria-haspopup` am Menü-Button entfernt (Disclosure-Muster). Das Zähler-Badge enthält sichtbare Zahl plus `.sr-only` „Einträge“. Die Legende hat `role="group"` mit `aria-label`. |
+| V-11 | behoben | Die wirkungslosen `focusin`/`focusout`-Handler sind entfernt. Hover-Pause und -Fortsetzung sind über eine Laufzustandsvariable gegen doppelte Timer abgesichert. |
+
+Offen: Firefox/Edge und echte Screenreader-Ausgabe sind weiterhin nicht geprüft (Umgebung).

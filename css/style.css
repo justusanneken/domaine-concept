@@ -12,7 +12,7 @@
   --border-input:#7b8494;
   --primary:#1d4ed8; --primary-hover:#1e40af; --on-primary:#ffffff;
   --danger:#b91c1c;  --danger-hover:#991b1b;  --on-danger:#ffffff;
-  --success:#15803d; --warning:#92400e; --info:#1d4ed8;
+  --success:#166534; --warning:#92400e; --info:#1d4ed8; /* V-01: #166534 statt #15803d (≥ 4,5:1 auf --success-bg) */
   --success-bg:#e7f6ec; --warning-bg:#fdf3e1; --danger-bg:#fdecec; --info-bg:#e8effd;
   --focus:#1d4ed8; --focus-halo:#ffffff;
   --lvl-none-bg:#eef0f3; --lvl-none-fg:#4b5563;
@@ -392,7 +392,7 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
     color-scheme: light;
     --bg:#ffffff; --surface:#ffffff; --surface-2:#eef0f3; --text:#000000; --text-muted:#333333;
     --border:#999999; --border-input:#666666;
-    --primary:#000000; --danger:#b91c1c; --warning:#92400e; --success:#15803d; --info:#1d4ed8;
+    --primary:#000000; --danger:#b91c1c; --warning:#92400e; --success:#166534; --info:#1d4ed8;
     --success-bg:#e7f6ec; --warning-bg:#fdf3e1; --danger-bg:#fdecec; --info-bg:#e8effd;
     --lvl-none-bg:#eef0f3; --lvl-none-fg:#4b5563;
     --lvl-r-bg:#dbeafe;    --lvl-r-fg:#1e3a8a;

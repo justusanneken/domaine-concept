@@ -26,7 +26,7 @@
         <span aria-hidden="true" class="theme-icon">◐</span><span id="theme-label">System</span>
       </button>
       <div class="menu">
-        <button type="button" class="btn btn-secondary" id="menu-button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-list" aria-label="Menü">
+        <button type="button" class="btn btn-secondary" id="menu-button" aria-expanded="false" aria-controls="menu-list" aria-label="Menü">
           <span aria-hidden="true">⋯</span>
         </button>
         <ul class="menu-list" id="menu-list" hidden>
@@ -49,6 +49,11 @@
 
   <!-- ===================== Inhalt ===================== -->
   <main id="main">
+    <div id="storage-corrupt-hint" class="hint hint-warning" role="alert" hidden>
+      <strong>Warnung:</strong> Die gespeicherten Daten konnten nicht gelesen werden (ungültiges oder unbekanntes Format).
+      Der bisherige Stand wurde unverändert unter dem Schlüssel <code>domaenen-rechtekonzept-v1-defekt</code> gesichert
+      und wird erst überschrieben, wenn du etwas änderst. Prüfe die Daten oder stelle einen Stand per „JSON importieren“ wieder her.
+    </div>
     <div id="storage-hint" class="hint hint-warning" hidden>
       <strong>Hinweis:</strong> Lokales Speichern ist nicht verfügbar. Sichere deine Daten per JSON-Export.
     </div>
