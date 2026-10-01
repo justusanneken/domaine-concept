@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stammdaten – Domänen-Rechtekonzept</title>
+  <meta name="description" content="Active-Directory-Berechtigungskonzept nach AGDLP erstellen – statische Web-App ohne Server.">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    /* Theme so früh wie möglich setzen, um Aufblitzen zu vermeiden */
+    try {
+      var t = localStorage.getItem('domaenen-rechtekonzept-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { /* localStorage nicht verfügbar – Systemeinstellung gilt */ }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+
+  <!-- ===================== Kopfzeile ===================== -->
+  <header class="app-header">
+    <p class="app-title">Domänen-Rechtekonzept</p>
+    <p class="save-status" id="save-status" aria-live="polite">Gespeichert</p>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" id="theme-toggle" aria-label="Darstellung: System (umschalten)">
+        <span aria-hidden="true" class="theme-icon">◐</span><span id="theme-label">System</span>
+      </button>
+      <div class="menu">
+        <button type="button" class="btn btn-secondary" id="menu-button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-list" aria-label="Menü">
+          <span aria-hidden="true">⋯</span>
+        </button>
+        <ul class="menu-list" id="menu-list" hidden>
+          <li><button type="button" class="menu-item" data-action="sample">Beispieldaten laden</button></li>
+          <li><button type="button" class="menu-item" data-action="import">JSON importieren</button></li>
+          <li><button type="button" class="menu-item" data-action="export-json">JSON exportieren</button></li>
+          <li><button type="button" class="menu-item" data-action="theme-system">Darstellung: System</button></li>
+          <li><button type="button" class="menu-item" data-action="theme-light">Darstellung: Hell</button></li>
+          <li><button type="button" class="menu-item" data-action="theme-dark">Darstellung: Dunkel</button></li>
+          <li><button type="button" class="menu-item menu-item-danger" data-action="reset">Alles zurücksetzen</button></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== Schritt-Navigation ===================== -->
+  <nav class="steps-nav" aria-label="Schritte">
+    <ol id="steps-list"><!-- wird von app.js gefüllt --></ol>
+  </nav>
+
+  <!-- ===================== Inhalt ===================== -->
+  <main id="main">
+    <div id="storage-hint" class="hint hint-warning" hidden>
+      <strong>Hinweis:</strong> Lokales Speichern ist nicht verfügbar. Sichere deine Daten per JSON-Export.
+    </div>
+
+    <!-- Schritt 1: Stammdaten -->
+    <section class="step" id="step-1" data-step="1" aria-labelledby="h-step-1">
+      <h1 id="h-step-1" tabindex="-1">1 Stammdaten</h1>
+      <p class="lead">Erfasse Firma, Domäne und Verantwortliche, damit das Konzept eindeutig zuordenbar ist.</p>
+      <div id="meta-alert" role="alert" class="alert-slot"></div>
+      <p class="req-note">* Pflichtfeld</p>
+      <form id="meta-form" class="form-stack" novalidate>
+        <div class="card">
+          <h2>Unternehmen</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="m-firma">Firmenname *</label>
+              <input id="m-firma" name="firma" type="text" autocomplete="organization" aria-required="true" aria-describedby="m-firma-err">
+              <p class="field-error" id="m-firma-err" hidden></p>
+            </div>
+            <div class="field">
+              <label for="m-domaene">AD-Domäne (FQDN) *</label>
+              <input id="m-domaene" name="domaene" type="text" inputmode="url" autocapitalize="off" spellcheck="false" aria-required="true" aria-describedby="m-domaene-help m-domaene-err" placeholder="firma.local">
+              <p class="help" id="m-domaene-help">z. B. <code>firma.local</code> – nur a–z, 0–9, Bindestrich, Punkt.</p>
+              <p class="field-error" id="m-domaene-err" hidden></p>
+            </div>
+            <div class="field">
+              <label for="m-netbios">NetBIOS-Name</label>
+              <input id="m-netbios" name="netbios" type="text" maxlength="15" autocapitalize="characters" spellcheck="false" aria-describedby="m-netbios-help" placeholder="FIRMA">
+              <p class="help" id="m-netbios-help">Max. 15 Zeichen, z. B. <code>FIRMA</code>.</p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Verantwortung</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="m-verantwortlich">Verantwortlicher (Name)</label>
+              <input id="m-verantwortlich" name="verantwortlich" type="text" autocomplete="name">
+            </div>
+            <div class="field">
+              <label for="m-funktion">Funktion</label>
+              <input id="m-funktion" name="funktion" type="text" placeholder="z. B. IT-Leitung">
+            </div>
+            <div class="field">
+              <label for="m-ersteller">Ersteller</label>
+              <input id="m-ersteller" name="ersteller" type="text">
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Dokument</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="m-version">Version</label>
+              <input id="m-version" name="version" type="text">
+            </div>
+            <div class="field">
+              <label for="m-datum">Datum</label>
+              <input id="m-datum" name="datum" type="date">
+            </div>
+            <div class="field">
+              <label for="m-rezert">Rezertifizierungsintervall</label>
+              <select id="m-rezert" name="rezertifizierungMonate" aria-describedby="m-rezert-help">
+                <option value="3">3 Monate</option>
+                <option value="6">6 Monate</option>
+                <option value="12">12 Monate</option>
+              </select>
+              <p class="help" id="m-rezert-help">Wie oft werden alle Berechtigungen überprüft? Standard: 6 Monate.</p>
+            </div>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Schritt 2: Rollen -->
+    <section class="step" id="step-2" data-step="2" aria-labelledby="h-step-2" hidden>
+      <h1 id="h-step-2" tabindex="-1">2 Rollen</h1>
+      <p class="lead">Lege Abteilungen bzw. Rollen an – jede Rolle erhält eine globale Gruppe <code>GG_&lt;ROLLE&gt;</code>.</p>
+      <div id="roles-alert" role="alert" class="alert-slot"></div>
+      <form id="role-form" class="card" novalidate>
+        <h2 id="role-form-title">Neu anlegen</h2>
+        <p class="req-note">* Pflichtfeld</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="r-name">Name *</label>
+            <input id="r-name" type="text" aria-required="true" aria-describedby="r-name-err">
+            <p class="field-error" id="r-name-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="r-kuerzel">Kürzel</label>
+            <input id="r-kuerzel" type="text" maxlength="40" spellcheck="false" autocapitalize="characters" aria-describedby="r-kuerzel-help r-kuerzel-err r-preview">
+            <p class="help" id="r-kuerzel-help">Leer lassen = aus dem Namen ableiten (A–Z, 0–9, max. 15 Zeichen).</p>
+            <p class="group-preview" id="r-preview" aria-live="polite"></p>
+            <p class="field-error" id="r-kuerzel-err" hidden></p>
+          </div>
+          <div class="field field-wide">
+            <label for="r-beschreibung">Beschreibung</label>
+            <textarea id="r-beschreibung" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="role-submit">Hinzufügen</button>
+          <button type="button" class="btn btn-secondary" id="role-cancel" hidden>Abbrechen</button>
+        </div>
+      </form>
+      <div id="roles-list"></div>
+    </section>
+
+    <!-- Schritt 3: Benutzer -->
+    <section class="step" id="step-3" data-step="3" aria-labelledby="h-step-3" hidden>
+      <h1 id="h-step-3" tabindex="-1">3 Benutzer</h1>
+      <p class="lead">Ordne jeden Benutzer genau einer Rolle zu – er wird damit Mitglied der globalen Gruppe dieser Rolle.</p>
+      <div id="users-alert" role="alert" class="alert-slot"></div>
+      <form id="user-form" class="card" novalidate>
+        <h2 id="user-form-title">Neu anlegen</h2>
+        <p class="req-note">* Pflichtfeld</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="u-vorname">Vorname *</label>
+            <input id="u-vorname" type="text" autocomplete="off" aria-required="true" aria-describedby="u-vorname-err">
+            <p class="field-error" id="u-vorname-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="u-nachname">Nachname *</label>
+            <input id="u-nachname" type="text" autocomplete="off" aria-required="true" aria-describedby="u-nachname-err">
+            <p class="field-error" id="u-nachname-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="u-anmeldename">Anmeldename *</label>
+            <input id="u-anmeldename" type="text" maxlength="20" spellcheck="false" autocapitalize="off" aria-required="true" aria-describedby="u-anmeldename-help u-anmeldename-err">
+            <p class="help" id="u-anmeldename-help">Vorschlag: <code>vorname.nachname</code>, max. 20 Zeichen – editierbar.</p>
+            <p class="field-error" id="u-anmeldename-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="u-rolle">Rolle *</label>
+            <select id="u-rolle" aria-required="true" aria-describedby="u-rolle-err"></select>
+            <p class="field-error" id="u-rolle-err" hidden></p>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="user-submit">Hinzufügen</button>
+          <button type="button" class="btn btn-secondary" id="user-cancel" hidden>Abbrechen</button>
+        </div>
+      </form>
+      <div id="users-list"></div>
+    </section>
+
+    <!-- Schritt 4: Ressourcen -->
+    <section class="step" id="step-4" data-step="4" aria-labelledby="h-step-4" hidden>
+      <h1 id="h-step-4" tabindex="-1">4 Ressourcen</h1>
+      <p class="lead">Erfasse Freigaben, Drucker und Anwendungen, auf die Rollen zugreifen sollen.</p>
+      <div id="res-alert" role="alert" class="alert-slot"></div>
+      <form id="res-form" class="card" novalidate>
+        <h2 id="res-form-title">Neu anlegen</h2>
+        <p class="req-note">* Pflichtfeld</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="s-typ">Typ *</label>
+            <select id="s-typ" aria-required="true">
+              <option value="ordner">Ordner/Freigabe</option>
+              <option value="drucker">Drucker</option>
+              <option value="anwendung">Anwendung</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-name">Name *</label>
+            <input id="s-name" type="text" aria-required="true" aria-describedby="s-name-err">
+            <p class="field-error" id="s-name-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="s-kuerzel">Kürzel</label>
+            <input id="s-kuerzel" type="text" maxlength="40" spellcheck="false" autocapitalize="characters" aria-describedby="s-kuerzel-help s-kuerzel-err s-preview">
+            <p class="help" id="s-kuerzel-help">Leer lassen = aus dem Namen ableiten (A–Z, 0–9, max. 15 Zeichen).</p>
+            <p class="group-preview" id="s-preview" aria-live="polite"></p>
+            <p class="field-error" id="s-kuerzel-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="s-pfad">Pfad/UNC</label>
+            <input id="s-pfad" type="text" spellcheck="false" autocapitalize="off" aria-describedby="s-pfad-help" placeholder="\\fs01\projekte">
+            <p class="help" id="s-pfad-help">z. B. <code>\\fs01\projekte</code> oder Druckerwarteschlange.</p>
+          </div>
+          <div class="field">
+            <label for="s-besitzer">Besitzer (Rolle)</label>
+            <select id="s-besitzer"></select>
+          </div>
+          <div class="field field-wide">
+            <label for="s-beschreibung">Beschreibung</label>
+            <textarea id="s-beschreibung" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="res-submit">Hinzufügen</button>
+          <button type="button" class="btn btn-secondary" id="res-cancel" hidden>Abbrechen</button>
+        </div>
+      </form>
+      <div id="res-list"></div>
+    </section>
+
+    <!-- Schritt 5: Matrix -->
+    <section class="step" id="step-5" data-step="5" aria-labelledby="h-step-5" hidden>
+      <h1 id="h-step-5" tabindex="-1">5 Matrix</h1>
+      <p class="lead">Lege je Rolle und Ressource die Berechtigungsstufe fest.</p>
+      <div id="matrix-area"></div>
+    </section>
+
+    <!-- Schritt 6: Gruppen -->
+    <section class="step" id="step-6" data-step="6" aria-labelledby="h-step-6" hidden>
+      <h1 id="h-step-6" tabindex="-1">6 Gruppen</h1>
+      <p class="lead">Aus Rollen und Matrix abgeleitete AD-Gruppen nach AGDLP.</p>
+      <div id="groups-area"></div>
+    </section>
+
+    <!-- Schritt 7: Dokument & Export -->
+    <section class="step" id="step-7" data-step="7" aria-labelledby="h-step-7" hidden>
+      <h1 id="h-step-7" tabindex="-1" class="no-print">7 Dokument &amp; Export</h1>
+      <p class="lead no-print">Das Konzeptdokument wird automatisch aus deinen Eingaben erzeugt.</p>
+      <div class="doc-actions card no-print">
+        <button type="button" class="btn btn-primary" id="btn-print">Drucken / PDF</button>
+        <button type="button" class="btn btn-secondary" id="btn-md">Markdown exportieren</button>
+        <button type="button" class="btn btn-secondary" id="btn-json">JSON exportieren</button>
+      </div>
+      <article class="doc" id="doc" aria-label="Konzeptdokument"></article>
+    </section>
+
+    <div class="step-footer no-print" id="step-footer"></div>
+  </main>
+
+  <!-- Bestätigungsdialog -->
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn btn-secondary" id="confirm-cancel">Abbrechen</button>
+        <button type="submit" value="ok" class="btn btn-danger" id="confirm-ok">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <input type="file" id="import-file" accept=".json,application/json" hidden>
+  <div class="toast-region">
+    <div id="toast-alerts" role="alert"></div>
+    <div id="toast-status" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
