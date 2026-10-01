@@ -13,7 +13,7 @@ Ziel: ruhiges, dichtes Admin-Werkzeug. Alle Maße in `rem` (1 rem = 16 px). Umse
   --border-input:#7b8494;      /* Eingabefelder, 3,6:1 auf --surface */
   --primary:#1d4ed8; --primary-hover:#1e40af; --on-primary:#ffffff;
   --danger:#b91c1c;  --danger-hover:#991b1b;  --on-danger:#ffffff;
-  --success:#15803d; --warning:#92400e; --info:#1d4ed8;
+  --success:#166534; --warning:#92400e; --info:#1d4ed8; /* V-01: statt #15803d, ≥ 4,5:1 auf --success-bg */
   --success-bg:#e7f6ec; --warning-bg:#fdf3e1; --danger-bg:#fdecec; --info-bg:#e8effd;
   --focus:#1d4ed8; --focus-halo:#ffffff;
   /* Berechtigungsstufen (Hintergrund / Text) */
